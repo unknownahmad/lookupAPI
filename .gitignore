@@ -1,12 +1,5 @@
-# Python virtual environment
 venv/
-
-# Python cache files
 __pycache__/
 *.py[cod]
-
-# Mac system files
 .DS_Store
-
-# Environment variables and credentials
 .env
