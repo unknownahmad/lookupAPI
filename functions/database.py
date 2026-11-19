@@ -1,23 +1,28 @@
-
-import mysql.connector
-from dotenv import load_dotenv
 import os
+import pymysql
+from dotenv import load_dotenv
+
 
 def connect_database():
-    #to connect to the database, and return if the connection is successful. 
+    """Create and return a MySQL database connection using .env settings."""
     load_dotenv()
+
     try:
-        connection = mysql.connector.connect(
+        db_port = int(os.getenv("DB_PORT") or 3306)
+
+        connection = pymysql.connect(
             host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT")),
+            port=db_port,
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            database=os.getenv("DB_NAME"),
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=10,
         )
 
-        print("GOOODDDD databse connected")
+        print("Database connected successfully!")
         return connection
 
-    except mysql.connector.Error as error:
-        print("BADDDDDDD database not connected :", error)
+    except (pymysql.Error, ValueError, TypeError) as error:
+        print("Database connection failed:", error)
         return None
