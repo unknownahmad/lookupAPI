@@ -1,0 +1,671 @@
+{
+  "generated_at": "2026-11-22",
+  "strict_policy": "ONLY APIs with verified unauthenticated GET endpoints returning meaningful data and documented free public access. Zero API keys, tokens, or registration required.",
+  "summary": {
+    "apis_guru_directory_total": 2529,
+    "apis_guru_scan_tested": 115,
+    "additional_curated_candidates_tested": 17,
+    "total_unique_apis_tested": 132,
+    "approved_catalogue_count": 15,
+    "categories_covered": [
+      "Education",
+      "Entertainment",
+      "Finance",
+      "Geography",
+      "Open Data",
+      "Science",
+      "Technology",
+      "Weather"
+    ]
+  },
+  "apis": [
+    {
+      "api_name": "Open-Meteo Weather Forecast API",
+      "provider": "Open-Meteo",
+      "category": "Weather",
+      "description": "Provides current weather and hourly or daily meteorological forecasts worldwide using national weather service models.",
+      "base_url": "https://api.open-meteo.com/v1",
+      "working_get_endpoint": "/forecast",
+      "example_query_parameters": {
+        "latitude": "52.52",
+        "longitude": "13.41",
+        "current_weather": "true"
+      },
+      "example_json_response": {
+        "latitude": 52.512604,
+        "longitude": 13.419517,
+        "generationtime_ms": 0.08952617645263672,
+        "utc_offset_seconds": 0,
+        "timezone": "GMT",
+        "timezone_abbreviation": "GMT",
+        "elevation": 38.0,
+        "current_weather_units": {
+          "time": "iso8601",
+          "interval": "seconds",
+          "temperature": "°C",
+          "windspeed": "km/h",
+          "winddirection": "°",
+          "is_day": "",
+          "weathercode": "wmo code"
+        },
+        "current_weather": {
+          "time": "2026-11-22T15:30",
+          "interval": 900,
+          "temperature": 4.4,
+          "windspeed": 11.8,
+          "winddirection": 322,
+          "is_day": 0,
+          "weathercode": 3
+        }
+      },
+      "documentation_url": "https://open-meteo.com/en/docs",
+      "authentication": "NONE",
+      "free_access_evidence": "Official docs state no API key or registration is required for non-commercial use (up to 10,000 calls/day); weather data licensed under CC BY 4.0 and source code under AGPLv3.",
+      "http_status": 200,
+      "response_time_seconds": 0.172,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "National Weather Service (NWS) API",
+      "provider": "NOAA / National Weather Service",
+      "category": "Weather",
+      "description": "Provides U.S. weather forecast grid metadata, active alerts, and observation station data directly from NOAA.",
+      "base_url": "https://api.weather.gov",
+      "working_get_endpoint": "/points/38.8894,-77.0352",
+      "example_query_parameters": {},
+      "example_json_response": {
+        "id": "https://api.weather.gov/points/38.8894,-77.0352",
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -77.0352,
+            38.8894
+          ]
+        },
+        "properties": {
+          "cwa": "LWX",
+          "gridId": "LWX",
+          "gridX": 97,
+          "gridY": 71,
+          "forecast": "https://api.weather.gov/gridpoints/LWX/97,71/forecast",
+          "relativeLocation": {
+            "city": "Washington",
+            "state": "DC"
+          },
+          "timeZone": "America/New_York"
+        }
+      },
+      "documentation_url": "https://www.weather.gov/documentation/services-web-api",
+      "authentication": "NONE",
+      "free_access_evidence": "U.S. Government public domain service; official docs state no API key or account is required, only a descriptive User-Agent header.",
+      "http_status": 200,
+      "response_time_seconds": 0.225,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "Frankfurter Exchange Rates API",
+      "provider": "Frankfurter (ECB Data)",
+      "category": "Finance",
+      "description": "Provides current and historical foreign exchange reference rates published by the European Central Bank.",
+      "base_url": "https://api.frankfurter.dev/v1",
+      "working_get_endpoint": "/latest",
+      "example_query_parameters": {
+        "base": "EUR",
+        "symbols": "USD,GBP,JPY"
+      },
+      "example_json_response": {
+        "amount": 1.0,
+        "base": "EUR",
+        "date": "2026-11-20",
+        "rates": {
+          "GBP": 0.83735,
+          "JPY": 174.35,
+          "USD": 1.099
+        }
+      },
+      "documentation_url": "https://frankfurter.dev/",
+      "authentication": "NONE",
+      "free_access_evidence": "Open-source project (MIT) tracking ECB reference rates; official docs confirm free access with no API keys, registration, or usage fees.",
+      "http_status": 200,
+      "response_time_seconds": 0.181,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "U.S. Treasury Fiscal Data API",
+      "provider": "U.S. Department of the Treasury",
+      "category": "Finance",
+      "description": "Provides official U.S. federal financial datasets including daily national debt, interest rates, and Treasury statements.",
+      "base_url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service",
+      "working_get_endpoint": "/v2/accounting/od/debt_to_penny",
+      "example_query_parameters": {
+        "page[size]": "2",
+        "sort": "-record_date"
+      },
+      "example_json_response": {
+        "data": [
+          {
+            "record_date": "2026-11-19",
+            "debt_held_public_amt": "32901459975089.26",
+            "intragov_hold_amt": "7808320725227.76",
+            "tot_pub_debt_out_amt": "40709780700317.02",
+            "src_line_nbr": "1",
+            "record_fiscal_year": "2027",
+            "record_fiscal_quarter": "1",
+            "record_calendar_year": "2026",
+            "record_calendar_quarter": "4",
+            "record_calendar_month": "11",
+            "record_calendar_day": "19"
+          },
+          {
+            "record_date": "2026-11-18",
+            "debt_held_public_amt": "32886805439264.87",
+            "intragov_hold_amt": "7803964199585.08",
+            "tot_pub_debt_out_amt": "40690769638849.95",
+            "src_line_nbr": "1",
+            "record_fiscal_year": "2027",
+            "record_fiscal_quarter": "1",
+            "record_calendar_year": "2026",
+            "record_calendar_quarter": "4",
+            "record_calendar_month": "11",
+            "record_calendar_day": "18"
+          }
+        ],
+        "meta": {
+          "count": 2,
+          "total-count": 8438
+        }
+      },
+      "documentation_url": "https://fiscaldata.treasury.gov/api-documentation/",
+      "authentication": "NONE",
+      "free_access_evidence": "Official U.S. Government public domain open data API; documentation explicitly states it is free with no API key or registration required.",
+      "http_status": 200,
+      "response_time_seconds": 0.61,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "Zippopotam.us Postal Code API",
+      "provider": "Zippopotam.us (GeoNames Data)",
+      "category": "Geography",
+      "description": "Looks up postal codes across 60+ countries and returns matching place names, states/regions, and latitude/longitude coordinates.",
+      "base_url": "https://api.zippopotam.us",
+      "working_get_endpoint": "/us/90210",
+      "example_query_parameters": {},
+      "example_json_response": {
+        "country": "United States",
+        "country abbreviation": "US",
+        "post code": "90210",
+        "places": [
+          {
+            "place name": "Beverly Hills",
+            "longitude": "-118.4065",
+            "latitude": "34.0901",
+            "state": "California",
+            "state abbreviation": "CA"
+          }
+        ]
+      },
+      "documentation_url": "https://api.zippopotam.us/",
+      "authentication": "NONE",
+      "free_access_evidence": "Open-source public service built on GeoNames data; official site confirms free access without API keys or registration.",
+      "http_status": 200,
+      "response_time_seconds": 0.233,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "USGS Earthquake Hazards Program API",
+      "provider": "U.S. Geological Survey",
+      "category": "Science",
+      "description": "Provides real-time and historical global earthquake event catalogs in GeoJSON format using the FDSN specification.",
+      "base_url": "https://earthquake.usgs.gov/fdsnws/event/1",
+      "working_get_endpoint": "/query",
+      "example_query_parameters": {
+        "format": "geojson",
+        "limit": "2",
+        "minmagnitude": "4.0"
+      },
+      "example_json_response": {
+        "type": "FeatureCollection",
+        "metadata": {
+          "title": "USGS Earthquakes",
+          "status": 200,
+          "count": 2
+        },
+        "features": [
+          {
+            "id": "us6000ucs1",
+            "properties": {
+              "mag": 4.9,
+              "place": "south of the Fiji Islands",
+              "time": 1795344367004,
+              "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000ucs1"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -176.3814,
+                -24.3316,
+                82.906
+              ]
+            }
+          },
+          {
+            "id": "us6000ucrp",
+            "properties": {
+              "mag": 5.1,
+              "place": "45 km SE of Ürümqi, China",
+              "time": 1795338508009,
+              "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000ucrp"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                87.9381,
+                43.4743,
+                10
+              ]
+            }
+          }
+        ]
+      },
+      "documentation_url": "https://earthquake.usgs.gov/fdsnws/event/1/",
+      "authentication": "NONE",
+      "free_access_evidence": "U.S. Government public domain scientific web service; official documentation confirms free public access with no API key required.",
+      "http_status": 200,
+      "response_time_seconds": 0.508,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "PubChem PUG REST API",
+      "provider": "NIH / National Library of Medicine",
+      "category": "Science",
+      "description": "Provides programmatic access to chemical compound properties, molecular formulas, weights, and IUPAC names from NIH PubChem.",
+      "base_url": "https://pubchem.ncbi.nlm.nih.gov/rest/pug",
+      "working_get_endpoint": "/compound/name/aspirin/property/MolecularFormula,MolecularWeight,IUPACName/JSON",
+      "example_query_parameters": {},
+      "example_json_response": {
+        "PropertyTable": {
+          "Properties": [
+            {
+              "CID": 2244,
+              "MolecularFormula": "C9H8O4",
+              "MolecularWeight": "180.16",
+              "IUPACName": "2-acetyloxybenzoic acid"
+            }
+          ]
+        }
+      },
+      "documentation_url": "https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access",
+      "authentication": "NONE",
+      "free_access_evidence": "Public U.S. National Institutes of Health database; official docs confirm free access without an API key under a fair-use limit of 5 requests/second.",
+      "http_status": 200,
+      "response_time_seconds": 0.281,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "Open Library Search API",
+      "provider": "Internet Archive",
+      "category": "Education",
+      "description": "Searches millions of books, authors, publication years, and ISBN metadata from the Internet Archive's open book catalog.",
+      "base_url": "https://openlibrary.org",
+      "working_get_endpoint": "/search.json",
+      "example_query_parameters": {
+        "q": "python programming",
+        "limit": "2",
+        "fields": "title,author_name,first_publish_year,edition_count"
+      },
+      "example_json_response": {
+        "numFound": 2558,
+        "start": 0,
+        "numFoundExact": true,
+        "num_found": 2558,
+        "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+        "q": "python programming",
+        "offset": null,
+        "docs": [
+          {
+            "author_name": [
+              "R. Nageswara Rao"
+            ],
+            "edition_count": 5,
+            "first_publish_year": 2016,
+            "title": "Core Python Programming"
+          },
+          {
+            "author_name": [
+              "Justin Seitz",
+              "Tim Arnold"
+            ],
+            "edition_count": 3,
+            "first_publish_year": 2014,
+            "title": "Black Hat Python"
+          }
+        ]
+      },
+      "documentation_url": "https://openlibrary.org/developers/api",
+      "authentication": "NONE",
+      "free_access_evidence": "Non-profit Internet Archive project; official docs confirm read APIs are free with no API key required (descriptive User-Agent requested).",
+      "http_status": 200,
+      "response_time_seconds": 2.143,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "Crossref REST API",
+      "provider": "Crossref",
+      "category": "Education",
+      "description": "Searches scholarly publication metadata including DOIs, journal titles, authors, publishers, and publication dates.",
+      "base_url": "https://api.crossref.org",
+      "working_get_endpoint": "/works",
+      "example_query_parameters": {
+        "query": "machine learning",
+        "rows": "2",
+        "select": "DOI,title,publisher,type"
+      },
+      "example_json_response": {
+        "status": "ok",
+        "message-type": "work-list",
+        "message-version": "1.0.0",
+        "message": {
+          "facets": {},
+          "total-results": 3106932,
+          "items": [
+            {
+              "DOI": "10.1093/oso/9780198828044.003.0003",
+              "title": [
+                "Machine learning with sklearn"
+              ],
+              "publisher": "Oxford University Press",
+              "type": "book-chapter"
+            },
+            {
+              "DOI": "10.1002/9781119902881",
+              "title": [
+                "Optimization and Machine Learning"
+              ],
+              "publisher": "Wiley",
+              "type": "monograph"
+            }
+          ],
+          "items-per-page": 2,
+          "query": {
+            "start-index": 0,
+            "search-terms": "machine learning"
+          }
+        }
+      },
+      "documentation_url": "https://api.crossref.org/swagger-ui/index.html",
+      "authentication": "NONE",
+      "free_access_evidence": "Non-profit scholarly infrastructure; official documentation confirms free public pool access with no API key or signup required.",
+      "http_status": 200,
+      "response_time_seconds": 0.381,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "Forem API V1 (DEV.to)",
+      "provider": "Forem / DEV Community",
+      "category": "Technology",
+      "description": "Retrieves published developer articles, community tags, reading times, and author metadata from DEV.to.",
+      "base_url": "https://dev.to/api",
+      "working_get_endpoint": "/articles",
+      "example_query_parameters": {
+        "tag": "python",
+        "per_page": "2"
+      },
+      "example_json_response": [
+        {
+          "id": 5091826,
+          "title": "FastAPI vs Node.js vs Bun: One PostgreSQL Setting Was Worth Up to 31% (No Runtime Changed)",
+          "description": "Express beat Bun in one test. Bun nearly doubled Node in another. And one PostgreSQL setting was...",
+          "url": "https://dev.to/rudratosh/fastapi-vs-nodejs-vs-bun-one-postgresql-setting-was-worth-up-to-31-no-runtime-changed-4b1h",
+          "published_at": "2026-11-22T05:15:40Z",
+          "tag_list": [
+            "node",
+            "python",
+            "webdev",
+            "performance"
+          ],
+          "positive_reactions_count": 8
+        },
+        {
+          "id": 5083782,
+          "title": "🐱 The Function Factory of Necoz! ⚙️ | Learning Python Functions 🚀",
+          "description": "🌟 Chapter 1: A New Mission from King Nyaomaru!   Remember my previous adventures on...",
+          "url": "https://dev.to/necoz/the-function-factory-of-necoz-learning-python-functions-2ikd",
+          "published_at": "2026-11-21T04:37:50Z",
+          "tag_list": [
+            "beginners",
+            "python"
+          ],
+          "positive_reactions_count": 73
+        }
+      ],
+      "documentation_url": "https://developers.forem.com/api/v1",
+      "authentication": "NONE",
+      "free_access_evidence": "Official Forem API v1 documentation explicitly marks GET /articles and GET /tags as public endpoints requiring no API key.",
+      "http_status": 200,
+      "response_time_seconds": 0.295,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "CIRCL Hashlookup API",
+      "provider": "CIRCL Luxembourg",
+      "category": "Technology",
+      "description": "Queries known file cryptographic hashes (MD5, SHA-1, SHA-256) against public software provenance datasets like NIST NSRL.",
+      "base_url": "https://hashlookup.circl.lu",
+      "working_get_endpoint": "/lookup/md5/8ED4B4ED952526D89899E723F3488DE4",
+      "example_query_parameters": {},
+      "example_json_response": {
+        "CRC32": "7A5407CA",
+        "FileName": "wow64_microsoft-windows-i..timezones.resources_31bf3856ad364e35_10.0.16299.579_de-de_f24979c73226184d.manifest",
+        "FileSize": "2520",
+        "MD5": "8ED4B4ED952526D89899E723F3488DE4",
+        "OpSystemCode": {
+          "MfgCode": "1006",
+          "OpSystemCode": "362",
+          "OpSystemName": "TBD",
+          "OpSystemVersion": "none"
+        },
+        "ProductCode": {
+          "ApplicationType": "Security",
+          "Language": "Multilanguage",
+          "MfgCode": "608",
+          "OpSystemCode": "868",
+          "ProductCode": "190742",
+          "ProductName": "Cumulative Update for Windows Server 2016 for x64 (KB4338817)",
+          "ProductVersion": "1709"
+        },
+        "SHA-1": "00000079FD7AAC9B2F9C988C50750E1F50B27EB5",
+        "SpecialCode": "",
+        "db": "nsrl_modern_rds",
+        "insert-timestamp": "1646977909.0909765",
+        "source": "NSRL",
+        "hashlookup:trust": 50
+      },
+      "documentation_url": "https://www.circl.lu/services/hashlookup/",
+      "authentication": "NONE",
+      "free_access_evidence": "Provided free of charge on a best-effort public basis by CIRCL under Creative Commons (CC-BY) terms with no authentication required.",
+      "http_status": 200,
+      "response_time_seconds": 0.163,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "PokéAPI (v2)",
+      "provider": "PokéAPI",
+      "category": "Entertainment",
+      "description": "RESTful API serving structured game data for Pokémon species, abilities, moves, items, and types for educational projects.",
+      "base_url": "https://pokeapi.co/api/v2",
+      "working_get_endpoint": "/pokemon",
+      "example_query_parameters": {
+        "limit": "3",
+        "offset": "0"
+      },
+      "example_json_response": {
+        "count": 1351,
+        "next": "https://pokeapi.co/api/v2/pokemon?offset=3&limit=3",
+        "previous": null,
+        "results": [
+          {
+            "name": "bulbasaur",
+            "url": "https://pokeapi.co/api/v2/pokemon/1/"
+          },
+          {
+            "name": "ivysaur",
+            "url": "https://pokeapi.co/api/v2/pokemon/2/"
+          },
+          {
+            "name": "venusaur",
+            "url": "https://pokeapi.co/api/v2/pokemon/3/"
+          }
+        ]
+      },
+      "documentation_url": "https://pokeapi.co/docs/v2",
+      "authentication": "NONE",
+      "free_access_evidence": "Open-source project (BSD-3-Clause code); official docs confirm completely free read-only access with no API key under a fair-use caching policy.",
+      "http_status": 200,
+      "response_time_seconds": 0.225,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "TVmaze API",
+      "provider": "TVmaze",
+      "category": "Entertainment",
+      "description": "Provides television show search, episode lists, cast metadata, ratings, and broadcast schedules.",
+      "base_url": "https://api.tvmaze.com",
+      "working_get_endpoint": "/search/shows",
+      "example_query_parameters": {
+        "q": "sherlock"
+      },
+      "example_json_response": [
+        {
+          "score": 0.8974391,
+          "show": {
+            "id": 335,
+            "name": "Sherlock",
+            "type": "Scripted",
+            "language": "English",
+            "genres": [
+              "Drama",
+              "Crime",
+              "Mystery"
+            ],
+            "status": "Ended",
+            "premiered": "2010-07-25",
+            "rating": {
+              "average": 8.9
+            }
+          }
+        },
+        {
+          "score": 0.6904223,
+          "show": {
+            "id": 77427,
+            "name": "Young Sherlock",
+            "type": "Scripted",
+            "language": "English",
+            "genres": [
+              "Action",
+              "Crime",
+              "Mystery"
+            ],
+            "status": "Running",
+            "premiered": "2026-03-04",
+            "rating": {
+              "average": 7.3
+            }
+          }
+        }
+      ],
+      "documentation_url": "https://www.tvmaze.com/api",
+      "authentication": "NONE",
+      "free_access_evidence": "Official docs state public endpoints are free with no API key required (rate limit ~20 req/10s) and data is licensed under CC BY-SA 4.0 with attribution.",
+      "http_status": 200,
+      "response_time_seconds": 0.188,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "APIs.guru OpenAPI Directory API",
+      "provider": "APIs.guru",
+      "category": "Open Data",
+      "description": "Provides directory metrics, provider listings, and machine-readable OpenAPI specifications for thousands of public web APIs.",
+      "base_url": "https://api.apis.guru/v2",
+      "working_get_endpoint": "/metrics.json",
+      "example_query_parameters": {},
+      "example_json_response": {
+        "numSpecs": 3992,
+        "numAPIs": 2529,
+        "numEndpoints": 108837,
+        "unreachable": 166,
+        "invalid": 688,
+        "unofficial": 25
+      },
+      "documentation_url": "https://apis.guru/api-doc/",
+      "authentication": "NONE",
+      "free_access_evidence": "Community-maintained open-source directory; API specifications and data are dedicated to the public domain under CC0 1.0 Universal with no auth required.",
+      "http_status": 200,
+      "response_time_seconds": 0.196,
+      "date_tested": "2026-11-22"
+    },
+    {
+      "api_name": "World Bank Indicators API (v2)",
+      "provider": "The World Bank",
+      "category": "Open Data",
+      "description": "Provides global economic, demographic, and development time-series indicators across countries and regions.",
+      "base_url": "https://api.worldbank.org/v2",
+      "working_get_endpoint": "/country/WLD/indicator/SP.POP.TOTL",
+      "example_query_parameters": {
+        "format": "json",
+        "per_page": "2"
+      },
+      "example_json_response": [
+        {
+          "page": 1,
+          "pages": 33,
+          "per_page": 2,
+          "total": 66,
+          "sourceid": "2",
+          "lastupdated": "2026-11-11"
+        },
+        [
+          {
+            "indicator": {
+              "id": "SP.POP.TOTL",
+              "value": "Population, total"
+            },
+            "country": {
+              "id": "1W",
+              "value": "World"
+            },
+            "countryiso3code": "WLD",
+            "date": "2025",
+            "value": 8215424893,
+            "unit": "",
+            "obs_status": "",
+            "decimal": 0
+          },
+          {
+            "indicator": {
+              "id": "SP.POP.TOTL",
+              "value": "Population, total"
+            },
+            "country": {
+              "id": "1W",
+              "value": "World"
+            },
+            "countryiso3code": "WLD",
+            "date": "2024",
+            "value": 8140897523,
+            "unit": "",
+            "obs_status": "",
+            "decimal": 0
+          }
+        ]
+      ],
+      "documentation_url": "https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information",
+      "authentication": "NONE",
+      "free_access_evidence": "Official World Bank Open Data API; documentation confirms free public access with no API key required under the CC BY 4.0 license.",
+      "http_status": 200,
+      "response_time_seconds": 0.29,
+      "date_tested": "2026-11-22"
+    }
+  ]
+}
