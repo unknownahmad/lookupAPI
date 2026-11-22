@@ -14,6 +14,7 @@ from functions.api_tester import (
     send_api_request,
     send_get_request,
     validate_json_body,
+    validate_request_headers,
     validate_request_url,
 )
 
@@ -54,10 +55,43 @@ class TestApiTester(unittest.TestCase):
         self.assertEqual(validate_request_url("https://api.example.test/v1")[0], True)
         self.assertEqual(validate_request_url("http://127.0.0.1:8000/items")[0], True)
 
-        for bad_url in ("", "   ", "not-a-url", "ftp://example.test/file", "https://bad url.test"):
+        for bad_url in (
+            "",
+            "   ",
+            "not-a-url",
+            "ftp://example.test/file",
+            "https://bad url.test",
+            "https://:8080/missing-host",
+            "https://api.example.test:notaport/v1",
+            "https://api.example.test:70000/v1",
+        ):
             valid, message = validate_request_url(bad_url)
             self.assertFalse(valid, f"Expected invalid URL: {bad_url!r}")
             self.assertTrue(bool(message))
+
+    def test_rejects_invalid_headers_and_timeouts_without_network_calls(self):
+        ok_hdr, clean_hdr, err_hdr = validate_request_headers({"Accept": "application/json", " ": "ignored"})
+        self.assertTrue(ok_hdr)
+        self.assertEqual(clean_hdr, {"Accept": "application/json"})
+        self.assertEqual(err_hdr, "")
+
+        bad_hdr_ok, _, bad_hdr_err = validate_request_headers({"X-Test": "value\r\nInjected: bad"})
+        self.assertFalse(bad_hdr_ok)
+        self.assertIn("newline", bad_hdr_err.lower())
+
+        self.assertEqual(build_default_request(None)["url"], "")
+
+        with patch("functions.api_tester.requests.request") as mock_req:
+            res_hdr = send_api_request("GET", "https://api.example.test/v1", headers={"X-Bad": "a\nb"})
+            self.assertFalse(res_hdr["ok"])
+            self.assertEqual(res_hdr["reason"], "Invalid Header")
+
+            for bad_timeout in (0, -3, True, "10"):
+                res_to = send_api_request("GET", "https://api.example.test/v1", timeout=bad_timeout)
+                self.assertFalse(res_to["ok"])
+                self.assertEqual(res_to["reason"], "Invalid Timeout")
+
+            mock_req.assert_not_called()
 
     def test_validate_json_body_handles_empty_valid_and_invalid_json(self):
         self.assertEqual(validate_json_body(None), (True, None, ""))

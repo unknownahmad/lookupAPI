@@ -15,26 +15,31 @@ SUPPORTED_METHODS = ("GET", "POST", "PUT", "DELETE")
 
 def build_default_request(api):
     """Build initial request method, URL, query parameters, headers, and empty body from a catalogue entry."""
-    base_url = str(api.get("base_url") or "").strip().rstrip("/")
-    endpoint = str(api.get("working_get_endpoint") or "").strip()
+    safe_api = api if isinstance(api, dict) else {}
+    base_url = str(safe_api.get("base_url") or "").strip().rstrip("/")
+    endpoint = str(safe_api.get("working_get_endpoint") or "").strip()
     if endpoint and not endpoint.startswith("/"):
         endpoint = "/" + endpoint
     full_url = base_url + endpoint if base_url else endpoint
 
-    raw_params = api.get("example_query_parameters")
+    raw_params = safe_api.get("example_query_parameters")
     params = {}
     if isinstance(raw_params, dict):
         for key, value in raw_params.items():
-            params[str(key)] = str(value)
+            clean_key = str(key or "").strip()
+            if clean_key:
+                params[clean_key] = str(value)
 
     headers = {
         "Accept": "application/json",
         "User-Agent": DEFAULT_USER_AGENT,
     }
-    raw_headers = api.get("default_headers") or api.get("headers")
+    raw_headers = safe_api.get("default_headers") or safe_api.get("headers")
     if isinstance(raw_headers, dict):
         for key, value in raw_headers.items():
-            headers[str(key)] = str(value)
+            clean_key = str(key or "").strip()
+            if clean_key:
+                headers[clean_key] = str(value)
 
     return {
         "method": "GET",
@@ -46,18 +51,43 @@ def build_default_request(api):
 
 
 def validate_request_url(url):
-    """Validate that the request URL is a non-empty http or https URL."""
+    """Validate that the request URL is a non-empty http or https URL with a valid host and port."""
     cleaned = str(url or "").strip()
     if not cleaned:
         return False, "Request URL cannot be empty."
     if any(ch.isspace() for ch in cleaned):
         return False, "Request URL cannot contain spaces."
 
-    parsed = urlparse(cleaned)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        return False, "Please enter a valid URL starting with http:// or https://."
+    try:
+        parsed = urlparse(cleaned)
+        port = parsed.port
+    except ValueError:
+        return False, "Request URL contains an invalid port number."
+
+    if parsed.scheme not in ("http", "https") or not parsed.netloc or not parsed.hostname:
+        return False, "Please enter a valid URL starting with http:// or https:// and a host name."
+    if port is not None and not (1 <= port <= 65535):
+        return False, "Request URL port must be between 1 and 65535."
 
     return True, cleaned
+
+
+def validate_request_headers(headers):
+    """Clean and validate request headers, rejecting CR/LF control characters."""
+    clean_headers = {}
+    if not isinstance(headers, dict):
+        return True, clean_headers, ""
+
+    for key, value in headers.items():
+        clean_key = str(key or "").strip()
+        if not clean_key:
+            continue
+        clean_val = str(value if value is not None else "")
+        if any(ch in clean_key or ch in clean_val for ch in ("\r", "\n")):
+            return False, {}, f"Invalid header '{clean_key.splitlines()[0]}': header names and values cannot contain newline characters."
+        clean_headers[clean_key] = clean_val
+
+    return True, clean_headers, ""
 
 
 def validate_json_body(raw_body):
@@ -149,19 +179,41 @@ def send_api_request(method, url, params=None, headers=None, json_body=None, tim
                 "final_url": validated_or_err,
             }
 
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+        return {
+            "ok": False,
+            "method": clean_method,
+            "status_code": None,
+            "reason": "Invalid Timeout",
+            "response_time_ms": 0.0,
+            "is_json": False,
+            "body": "",
+            "error": "Request timeout must be a positive number of seconds.",
+            "rate_limited": False,
+            "final_url": validated_or_err,
+        }
+
     clean_params = {}
     if isinstance(params, dict):
         for key, value in params.items():
             clean_key = str(key or "").strip()
             if clean_key:
-                clean_params[clean_key] = str(value or "")
+                clean_params[clean_key] = str(value if value is not None else "")
 
-    clean_headers = {}
-    if isinstance(headers, dict):
-        for key, value in headers.items():
-            clean_key = str(key or "").strip()
-            if clean_key:
-                clean_headers[clean_key] = str(value or "")
+    headers_ok, clean_headers, header_err = validate_request_headers(headers)
+    if not headers_ok:
+        return {
+            "ok": False,
+            "method": clean_method,
+            "status_code": None,
+            "reason": "Invalid Header",
+            "response_time_ms": 0.0,
+            "is_json": False,
+            "body": "",
+            "error": header_err,
+            "rate_limited": False,
+            "final_url": validated_or_err,
+        }
 
     start = time.perf_counter()
     try:
@@ -174,6 +226,34 @@ def send_api_request(method, url, params=None, headers=None, json_body=None, tim
             timeout=timeout,
         )
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+    except requests.exceptions.InvalidHeader as err:
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+        return {
+            "ok": False,
+            "method": clean_method,
+            "status_code": None,
+            "reason": "Invalid Header",
+            "response_time_ms": elapsed_ms,
+            "is_json": False,
+            "body": "",
+            "error": f"Invalid request header: {err}",
+            "rate_limited": False,
+            "final_url": validated_or_err,
+        }
+    except requests.exceptions.InvalidURL as err:
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+        return {
+            "ok": False,
+            "method": clean_method,
+            "status_code": None,
+            "reason": "Invalid URL",
+            "response_time_ms": elapsed_ms,
+            "is_json": False,
+            "body": "",
+            "error": f"Invalid request URL: {err}",
+            "rate_limited": False,
+            "final_url": validated_or_err,
+        }
     except requests.exceptions.Timeout:
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
         return {
