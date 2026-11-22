@@ -1,3 +1,7 @@
+# ==========================================
+# MIDTERM CODE
+# ==========================================
+
 from functions.activity import save_activity
 from functions.list_of_APIs import add_API, collect_all_APIs, remove_API
 
@@ -13,11 +17,19 @@ def save_API(api):
         print("Cannot save an API without a name.")
         return False
 
+    # ==========================================
+    # FINAL CODE
+    # ==========================================
+    resolved_endpoint_url = str(api.get("endpoint_url") or api.get("base_url") or "").strip()
+
+    # ==========================================
+    # MIDTERM CODE
+    # ==========================================
     saved_api = {
         "name": name,
         "category": str(api.get("category") or "General"),
         "description": str(api.get("description") or "No description available"),
-        "endpoint_url": str(api.get("endpoint_url") or ""),
+        "endpoint_url": resolved_endpoint_url,
         "documentation_url": str(api.get("documentation_url") or ""),
         "http_method": str(api.get("http_method") or "GET"),
         "requires_auth": bool(api.get("requires_auth", False)),
