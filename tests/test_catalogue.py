@@ -13,6 +13,7 @@ from functions.test_catalogue import (
     extract_rate_limit_info,
     format_example_endpoint,
     group_apis_by_category,
+    is_valid_catalogue_entry,
     load_verified_free_apis,
 )
 
@@ -97,6 +98,64 @@ class TestCatalogueFunctions(unittest.TestCase):
         self.assertIn("CC BY 4.0", attribution)
         self.assertIn("10,000 calls/day", rate_limits)
         self.assertIn("User-Agent", rate_limits)
+
+    def test_validates_required_fields_and_deduplicates_entries(self):
+        sample = {
+            "apis": [
+                {
+                    "api_name": "Valid API",
+                    "category": "Open Data",
+                    "base_url": "https://api.example.test/v1",
+                    "working_get_endpoint": "/items",
+                    "authentication": "NONE",
+                },
+                {
+                    "api_name": "Valid API",
+                    "category": "Open Data",
+                    "base_url": "https://api.example.test/v1/",
+                    "working_get_endpoint": "/items",
+                    "authentication": "NONE",
+                },
+                {
+                    "api_name": "",
+                    "base_url": "https://api.example.test",
+                    "working_get_endpoint": "/missing-name",
+                    "authentication": "NONE",
+                },
+                {
+                    "api_name": "Bad Base URL API",
+                    "base_url": "ftp://invalid.example.test",
+                    "working_get_endpoint": "/items",
+                    "authentication": "NONE",
+                },
+                {
+                    "api_name": "Missing Endpoint API",
+                    "base_url": "https://api.example.test",
+                    "working_get_endpoint": "",
+                    "authentication": "NONE",
+                },
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "validated.json")
+            with open(path, "w", encoding="utf-8") as file:
+                json.dump(sample, file)
+
+            loaded = load_verified_free_apis(path)
+            self.assertEqual(len(loaded), 1)
+            self.assertEqual(loaded[0]["api_name"], "Valid API")
+            self.assertFalse(is_valid_catalogue_entry("bad"))
+
+    def test_handles_malformed_helper_inputs_and_missing_endpoint(self):
+        self.assertEqual(group_apis_by_category(None), {})
+        self.assertEqual(group_apis_by_category(["not-a-dict", {"category": "Science"}]), {"Science": [{"category": "Science"}]})
+        self.assertEqual(
+            format_example_endpoint({"working_get_endpoint": "", "example_query_parameters": {"a": "1"}}),
+            "Not available",
+        )
+        self.assertEqual(format_example_endpoint(None), "Not available")
+        self.assertIn("official documentation", extract_attribution_info(None).lower())
+        self.assertIn("fair-use", extract_rate_limit_info(None).lower())
 
 
 if __name__ == "__main__":

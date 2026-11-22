@@ -5,13 +5,30 @@
 import json
 import os
 import re
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 CATALOGUE_FILE = "data/verified_free_apis.json"
 
 
+def is_valid_catalogue_entry(entry):
+    """Return True if a catalogue entry is unauthenticated and has required valid fields."""
+    if not isinstance(entry, dict):
+        return False
+    if str(entry.get("authentication") or "").strip().upper() != "NONE":
+        return False
+
+    name = str(entry.get("api_name") or "").strip()
+    base_url = str(entry.get("base_url") or "").strip()
+    endpoint = str(entry.get("working_get_endpoint") or "").strip()
+    if not name or not base_url or not endpoint:
+        return False
+
+    parsed = urlparse(base_url)
+    return parsed.scheme in ("http", "https") and bool(parsed.hostname)
+
+
 def load_verified_free_apis(file_path=CATALOGUE_FILE):
-    """Load the approved no-auth public API catalogue from JSON."""
+    """Load and validate the approved no-auth public API catalogue from JSON."""
     if not os.path.exists(file_path):
         print("Verified API catalogue file not found:", file_path)
         return []
@@ -28,11 +45,18 @@ def load_verified_free_apis(file_path=CATALOGUE_FILE):
         return []
 
     approved = []
+    seen_keys = set()
     for entry in raw_apis:
-        if not isinstance(entry, dict):
+        if not is_valid_catalogue_entry(entry):
             continue
-        if str(entry.get("authentication") or "").strip().upper() != "NONE":
+        dedupe_key = (
+            str(entry.get("api_name") or "").strip().lower(),
+            str(entry.get("base_url") or "").strip().rstrip("/").lower(),
+            str(entry.get("working_get_endpoint") or "").strip(),
+        )
+        if dedupe_key in seen_keys:
             continue
+        seen_keys.add(dedupe_key)
         approved.append(entry)
 
     return approved
@@ -40,8 +64,13 @@ def load_verified_free_apis(file_path=CATALOGUE_FILE):
 
 def group_apis_by_category(apis):
     """Group approved APIs into an alphabetically ordered category dictionary."""
+    if not isinstance(apis, list):
+        return {}
+
     grouped = {}
     for api in apis:
+        if not isinstance(api, dict):
+            continue
         category = str(api.get("category") or "Other").strip() or "Other"
         grouped.setdefault(category, []).append(api)
 
@@ -50,16 +79,24 @@ def group_apis_by_category(apis):
 
 def format_example_endpoint(api):
     """Build the full example GET endpoint path including query parameters."""
-    endpoint = str(api.get("working_get_endpoint") or "").strip() or "Not available"
+    if not isinstance(api, dict):
+        return "Not available"
+
+    endpoint = str(api.get("working_get_endpoint") or "").strip()
+    if not endpoint:
+        return "Not available"
+
     params = api.get("example_query_parameters")
-    if isinstance(params, dict) and len(params) > 0:
-        return f"{endpoint}?{urlencode(params)}"
+    if isinstance(params, dict):
+        clean_params = {str(k).strip(): str(v) for k, v in params.items() if str(k or "").strip()}
+        if clean_params:
+            return f"{endpoint}?{urlencode(clean_params)}"
     return endpoint
 
 
 def extract_attribution_info(api):
     """Identify license or attribution notes stated in the catalogue entry."""
-    evidence = str(api.get("free_access_evidence") or "")
+    evidence = str(api.get("free_access_evidence") or "") if isinstance(api, dict) else ""
     lower = evidence.lower()
     notes = []
 
@@ -89,7 +126,7 @@ def extract_attribution_info(api):
 
 def extract_rate_limit_info(api):
     """Extract documented rate limits or usage guidance from catalogue evidence."""
-    evidence = str(api.get("free_access_evidence") or "")
+    evidence = str(api.get("free_access_evidence") or "") if isinstance(api, dict) else ""
     lower = evidence.lower()
     notes = []
 
