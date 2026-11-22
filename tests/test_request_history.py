@@ -2,6 +2,7 @@
 # FINAL CODE
 # ==========================================
 
+import json
 import os
 import tempfile
 import unittest
@@ -10,10 +11,12 @@ from urllib.parse import parse_qsl, urlsplit
 from functions.request_history import (
     HISTORY_FILE,
     MASK_VALUE,
+    build_history_entry,
     load_request_history,
     mask_sensitive_query_params,
     save_request_history,
 )
+from ui.request_history_panel import format_history_status
 
 
 class TestRequestHistoryMasking(unittest.TestCase):
@@ -108,6 +111,50 @@ class TestRequestHistoryMasking(unittest.TestCase):
             with open(malformed_file, "w", encoding="utf-8") as file:
                 file.write("{invalid json")
             self.assertEqual(load_request_history(malformed_file), [])
+
+            mixed_file = os.path.join(tmpdir, "mixed.json")
+            with open(mixed_file, "w", encoding="utf-8") as file:
+                json.dump([{}, "not-a-dict", {"api_name": "Valid", "url": "https://api.example.test"}], file)
+            loaded_mixed = load_request_history(mixed_file)
+            self.assertEqual(len(loaded_mixed), 1)
+            self.assertEqual(loaded_mixed[0]["api_name"], "Valid")
+
+    def test_masks_hyphenated_sensitive_params_and_validates_types(self):
+        url = "https://api.example.test/v1?page=1&api-key=abc123&access-token=tok999&client-secret=sec888"
+        sanitized = mask_sensitive_query_params(url)
+        params = dict(parse_qsl(urlsplit(sanitized).query))
+        self.assertEqual(params["page"], "1")
+        self.assertEqual(params["api-key"], MASK_VALUE)
+        self.assertEqual(params["access-token"], MASK_VALUE)
+        self.assertEqual(params["client-secret"], MASK_VALUE)
+
+        entry = build_history_entry(
+            "Type Test",
+            "get",
+            "https://api.example.test/v1",
+            {"ok": True, "status_code": True, "response_time_ms": False},
+        )
+        self.assertIsNone(entry["status_code"])
+        self.assertIsNone(entry["response_time_ms"])
+        self.assertEqual(format_history_status({"status_code": True, "success": True})[0], "  Failed  ")
+        self.assertEqual(format_history_status({"status_code": 429, "success": False})[0], "  HTTP 429  ")
+
+    def test_history_enforces_max_entries_and_leaves_no_temp_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            hist_path = os.path.join(tmpdir, "bounded.json")
+            for idx in range(5):
+                save_request_history(
+                    f"API {idx}",
+                    "GET",
+                    f"https://api.example.test/{idx}",
+                    {"ok": True, "status_code": 200, "response_time_ms": float(idx + 10)},
+                    file_path=hist_path,
+                    max_entries=3,
+                )
+
+            loaded = load_request_history(hist_path)
+            self.assertEqual([e["api_name"] for e in loaded], ["API 2", "API 3", "API 4"])
+            self.assertEqual(os.listdir(tmpdir), ["bounded.json"])
 
 
 if __name__ == "__main__":

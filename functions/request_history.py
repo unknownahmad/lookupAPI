@@ -5,10 +5,12 @@
 from datetime import datetime
 import json
 import os
+import tempfile
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 HISTORY_FILE = "data/test_request_history.json"
 MASK_VALUE = "REDACTED"
+MAX_HISTORY_ENTRIES = 200
 SENSITIVE_QUERY_PARAMS = {
     "api_key",
     "apikey",
@@ -21,7 +23,7 @@ SENSITIVE_QUERY_PARAMS = {
     "client_secret",
     "authorization",
     "auth_token",
-    "x-api-key",
+    "x_api_key",
 }
 
 
@@ -40,7 +42,8 @@ def mask_sensitive_query_params(url):
     changed = False
 
     for key, value in pairs:
-        if key.strip().lower() in SENSITIVE_QUERY_PARAMS:
+        normalized_key = key.strip().lower().replace("-", "_")
+        if normalized_key in SENSITIVE_QUERY_PARAMS:
             masked_pairs.append((key, MASK_VALUE))
             changed = True
         else:
@@ -60,13 +63,16 @@ def build_history_entry(api_name, method, url, result):
     response_time = safe_result.get("response_time_ms")
     raw_url = str(url or safe_result.get("final_url") or "").strip()
 
+    valid_status = isinstance(status_code, int) and not isinstance(status_code, bool)
+    valid_time = isinstance(response_time, (int, float)) and not isinstance(response_time, bool)
+
     return {
         "api_name": str(api_name or "Custom Request").strip() or "Custom Request",
         "method": str(method or safe_result.get("method") or "GET").strip().upper(),
         "url": mask_sensitive_query_params(raw_url),
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "status_code": int(status_code) if isinstance(status_code, int) else None,
-        "response_time_ms": round(float(response_time), 1) if isinstance(response_time, (int, float)) else None,
+        "status_code": int(status_code) if valid_status else None,
+        "response_time_ms": round(float(response_time), 1) if valid_time else None,
         "success": bool(safe_result.get("ok", False)),
     }
 
@@ -90,24 +96,43 @@ def load_request_history(file_path=HISTORY_FILE):
         print("Warning: Request history file format is invalid (expected a JSON list).")
         return []
 
-    return [entry for entry in data if isinstance(entry, dict)]
+    valid_entries = []
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        if not str(entry.get("url") or "").strip() and not str(entry.get("api_name") or "").strip():
+            continue
+        valid_entries.append(entry)
+    return valid_entries
 
 
-def save_request_history(api_name, method, url, result, file_path=HISTORY_FILE):
-    """Append a single request summary entry to the JSON request history file."""
+def save_request_history(api_name, method, url, result, file_path=HISTORY_FILE, max_entries=MAX_HISTORY_ENTRIES):
+    """Append a sanitized request summary entry atomically to the JSON request history file."""
     entry = build_history_entry(api_name, method, url, result)
     history = load_request_history(file_path=file_path)
     history.append(entry)
 
-    parent_dir = os.path.dirname(file_path)
-    if parent_dir:
-        os.makedirs(parent_dir, exist_ok=True)
+    if isinstance(max_entries, int) and not isinstance(max_entries, bool) and max_entries > 0:
+        history = history[-max_entries:]
 
+    parent_dir = os.path.dirname(file_path) or "."
+    os.makedirs(parent_dir, exist_ok=True)
+
+    tmp_path = None
     try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            json.dump(history, file, indent=2, ensure_ascii=False)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=parent_dir, prefix=".history_", suffix=".tmp", delete=False
+        ) as tmp_file:
+            tmp_path = tmp_file.name
+            json.dump(history, tmp_file, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, file_path)
     except OSError as error:
         print("Warning: Could not save request history:", error)
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
         return None
 
     return entry

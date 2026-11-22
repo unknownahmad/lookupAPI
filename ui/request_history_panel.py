@@ -17,10 +17,12 @@ from ui.theme import (
 
 def format_history_status(entry):
     """Return display label and colours for a stored request history status."""
-    status_code = entry.get("status_code")
-    success = bool(entry.get("success", False))
+    safe_entry = entry if isinstance(entry, dict) else {}
+    status_code = safe_entry.get("status_code")
+    success = bool(safe_entry.get("success", False))
+    valid_status = isinstance(status_code, int) and not isinstance(status_code, bool)
 
-    if status_code is None:
+    if not valid_status:
         return "  Failed  ", COLOR_ERROR, TEXT_MAIN
     if success:
         return f"  HTTP {status_code}  ", COLOR_SUCCESS, COLOR_SUCCESS_TEXT
@@ -36,7 +38,8 @@ def render_history_row(parent, entry, avail_w):
     url = str(entry.get("url") or "Not available")
     timestamp = str(entry.get("timestamp") or "Unknown time")
     elapsed = entry.get("response_time_ms")
-    time_txt = f"{elapsed} ms" if isinstance(elapsed, (int, float)) else "—"
+    valid_time = isinstance(elapsed, (int, float)) and not isinstance(elapsed, bool)
+    time_txt = f"{elapsed} ms" if valid_time else "—"
     outcome_txt = "Succeeded" if entry.get("success") else "Failed"
     outcome_color = COLOR_SUCCESS if entry.get("success") else COLOR_ERROR
     badge_text, badge_bg, badge_fg = format_history_status(entry)
