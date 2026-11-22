@@ -11,6 +11,7 @@ import requests
 DEFAULT_USER_AGENT = "LOOKUPAPI/1.0 (Python Desktop API Explorer; University Course Project)"
 DEFAULT_TIMEOUT = 15
 SUPPORTED_METHODS = ("GET", "POST", "PUT", "DELETE")
+MAX_RESPONSE_DISPLAY_CHARS = 250_000
 
 
 def build_default_request(api):
@@ -109,25 +110,33 @@ def validate_json_body(raw_body):
     return True, parsed, ""
 
 
-def format_response_body(response):
+def format_response_body(response, max_chars=MAX_RESPONSE_DISPLAY_CHARS):
     """Format a requests.Response body as pretty JSON when valid, otherwise raw text."""
-    content_type = str(response.headers.get("Content-Type") or "").lower()
-    raw_text = response.text or ""
+    headers = getattr(response, "headers", None) or {}
+    content_type = str(headers.get("Content-Type") or "").lower()
+    raw_text = getattr(response, "text", None) or ""
     stripped = raw_text.lstrip()
+
+    formatted_text = raw_text
+    is_json = False
+    warning = ""
 
     expects_json = "json" in content_type or stripped.startswith(("{", "["))
     if expects_json and stripped:
         try:
             parsed = json.loads(raw_text)
-            formatted = json.dumps(parsed, indent=2, ensure_ascii=False)
-            return formatted, True, ""
+            formatted_text = json.dumps(parsed, indent=2, ensure_ascii=False)
+            is_json = True
         except ValueError:
-            warning = ""
             if "json" in content_type:
                 warning = "Response declared JSON content type, but body was not valid JSON. Showing raw text."
-            return raw_text, False, warning
 
-    return raw_text, False, ""
+    if max_chars and len(formatted_text) > max_chars:
+        trunc_note = f"Response exceeded {max_chars:,} characters and was truncated for display."
+        formatted_text = formatted_text[:max_chars] + f"\n\n... [Truncated: {trunc_note}]"
+        warning = f"{warning} {trunc_note}".strip()
+
+    return formatted_text, is_json, warning
 
 
 def send_api_request(method, url, params=None, headers=None, json_body=None, timeout=DEFAULT_TIMEOUT):

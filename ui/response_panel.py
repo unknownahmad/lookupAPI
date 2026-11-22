@@ -3,6 +3,7 @@
 # ==========================================
 
 from functools import partial
+import tkinter as tk
 import customtkinter as ctk
 
 from ui.theme import (
@@ -13,6 +14,15 @@ from ui.theme import (
 )
 
 DEFAULT_RESPONSE_PLACEHOLDER = "Click 'Send Request' to execute a request and inspect the formatted response here."
+SPECIFIC_FAILURE_REASONS = {
+    "Invalid JSON",
+    "Invalid URL",
+    "Invalid Header",
+    "Invalid Timeout",
+    "Unsupported Method",
+    "Timeout",
+    "Connection Error",
+}
 
 
 def handle_copy_response(tester_state, ui_refs):
@@ -22,10 +32,15 @@ def handle_copy_response(tester_state, ui_refs):
         ui_refs["status_label"].configure(text="Nothing to copy — send a request first.", text_color=COLOR_WARNING)
         return False
 
-    root = ui_refs["response_box"].winfo_toplevel()
-    root.clipboard_clear()
-    root.clipboard_append(text_to_copy)
-    root.update_idletasks()
+    try:
+        root = ui_refs["response_box"].winfo_toplevel()
+        root.clipboard_clear()
+        root.clipboard_append(text_to_copy)
+        root.update_idletasks()
+    except tk.TclError:
+        ui_refs["status_label"].configure(text="Could not access the system clipboard.", text_color=COLOR_ERROR)
+        return False
+
     ui_refs["status_label"].configure(text="Response copied to clipboard.", text_color=COLOR_SUCCESS)
     return True
 
@@ -39,6 +54,7 @@ def handle_clear_response(tester_state, ui_refs):
     ui_refs["time_label"].configure(text="Time: —")
     ui_refs["format_label"].configure(text="", fg_color="transparent", text_color=TEXT_MUTED)
     ui_refs["error_label"].configure(text="", text_color=TEXT_MUTED)
+    ui_refs["error_label"].pack_forget()
 
     resp_box = ui_refs["response_box"]
     resp_box.configure(state="normal")
@@ -54,12 +70,16 @@ def update_response_card(result, tester_state, ui_refs):
     ui_refs["send_btn"].configure(state="normal", text="Send Request")
     method = str(result.get("method") or tester_state.get("method") or "GET").upper()
     status_code = result.get("status_code")
-    reason = result.get("reason") or ""
-    elapsed_ms = result.get("response_time_ms", 0.0)
+    reason = str(result.get("reason") or "").strip()
+    elapsed_ms = result.get("response_time_ms")
     error_msg = result.get("error") or ""
     body_text = result.get("body") or ""
 
-    ui_refs["time_label"].configure(text=f"Time: {elapsed_ms} ms")
+    has_timing = isinstance(elapsed_ms, (int, float)) and not isinstance(elapsed_ms, bool)
+    if status_code is None and (not has_timing or elapsed_ms <= 0):
+        ui_refs["time_label"].configure(text="Time: —")
+    else:
+        ui_refs["time_label"].configure(text=f"Time: {elapsed_ms} ms")
 
     if status_code is not None:
         status_text = f"HTTP {status_code} {reason}".strip()
@@ -71,7 +91,7 @@ def update_response_card(result, tester_state, ui_refs):
             badge_bg, badge_fg = COLOR_ERROR, TEXT_MAIN
         ui_refs["status_badge"].configure(text=f"  {status_text}  ", fg_color=badge_bg, text_color=badge_fg)
     else:
-        fail_label = "Invalid JSON" if reason == "Invalid JSON" else "Request Failed"
+        fail_label = reason if reason in SPECIFIC_FAILURE_REASONS else "Request Failed"
         ui_refs["status_badge"].configure(text=f"  {fail_label}  ", fg_color=COLOR_ERROR, text_color=TEXT_MAIN)
 
     if body_text:
@@ -79,19 +99,30 @@ def update_response_card(result, tester_state, ui_refs):
             ui_refs["format_label"].configure(text="  JSON  ", fg_color=ACCENT_PRIMARY, text_color=TEXT_MAIN)
         else:
             ui_refs["format_label"].configure(text="  Raw Text  ", fg_color=BG_SURFACE, text_color=TEXT_MUTED)
+    elif status_code is not None and result.get("ok"):
+        ui_refs["format_label"].configure(text="  Empty  ", fg_color=BG_SURFACE, text_color=TEXT_MUTED)
     else:
         ui_refs["format_label"].configure(text="", fg_color="transparent", text_color=TEXT_MUTED)
 
+    resp_box = ui_refs["response_box"]
     if error_msg:
         err_color = COLOR_WARNING if (result.get("ok") or result.get("rate_limited")) else COLOR_ERROR
         ui_refs["error_label"].configure(text=error_msg, text_color=err_color)
+        ui_refs["error_label"].pack(padx=14, pady=(0, 6), fill="x", before=resp_box)
     else:
         ui_refs["error_label"].configure(text="", text_color=TEXT_MUTED)
+        ui_refs["error_label"].pack_forget()
 
-    display_body = body_text if body_text else (error_msg or "(Empty response body)")
+    if body_text:
+        display_body = body_text
+    elif error_msg:
+        display_body = error_msg
+    elif status_code == 204:
+        display_body = "(No content — HTTP 204)"
+    else:
+        display_body = "(Empty response body)"
     tester_state["last_body"] = body_text if body_text else error_msg
 
-    resp_box = ui_refs["response_box"]
     resp_box.configure(state="normal")
     resp_box.delete("1.0", "end")
     resp_box.insert("1.0", display_body)
@@ -124,7 +155,7 @@ def build_response_card(details_frame, tester_state, ui_refs, avail_w):
     ctk.CTkFrame(resp_card, height=1, fg_color=BORDER_SUBTLE).pack(padx=12, pady=(0, 8), fill="x")
 
     actions_row = ctk.CTkFrame(resp_card, fg_color="transparent")
-    actions_row.pack(padx=12, pady=(0, 6), fill="x")
+    actions_row.pack(padx=12, pady=(0, 8), fill="x")
     copy_btn = ctk.CTkButton(
         actions_row, text="Copy Response", width=114, height=BTN_HEIGHT_SM, corner_radius=RADIUS_CONTROL,
         fg_color=BG_SURFACE, hover_color=BG_SURFACE_HOVER, border_width=1, border_color=BORDER_COLOR,
@@ -141,7 +172,6 @@ def build_response_card(details_frame, tester_state, ui_refs, avail_w):
     clear_btn.pack(side="left")
 
     error_label = ctk.CTkLabel(resp_card, text="", text_color=COLOR_ERROR, wraplength=max(240, avail_w - 28), justify="left", anchor="w", font=font_ui(12))
-    error_label.pack(padx=14, pady=(0, 4), fill="x")
 
     response_box = ctk.CTkTextbox(
         resp_card, height=260, wrap="word", fg_color=BG_CODE, text_color=TEXT_MAIN,

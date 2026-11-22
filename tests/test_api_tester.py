@@ -2,6 +2,7 @@
 # FINAL CODE
 # ==========================================
 
+import tkinter as tk
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +17,11 @@ from functions.api_tester import (
     validate_json_body,
     validate_request_headers,
     validate_request_url,
+)
+from ui.response_panel import (
+    handle_clear_response,
+    handle_copy_response,
+    update_response_card,
 )
 
 
@@ -185,6 +191,51 @@ class TestApiTester(unittest.TestCase):
             self.assertTrue(res_429["rate_limited"])
             self.assertIn("Retry after 30s", res_429["error"])
             self.assertEqual(m_req.call_count, 1)
+
+    def test_format_response_body_truncates_oversized_responses(self):
+        large_resp = make_mock_response(content_type="text/plain", text="A" * 500)
+        body, is_json, warning = format_response_body(large_resp, max_chars=100)
+        self.assertFalse(is_json)
+        self.assertIn("Truncated", body)
+        self.assertIn("truncated", warning.lower())
+
+    def test_response_panel_states_copy_clear_and_clipboard_errors(self):
+        ui_refs = {
+            "send_btn": MagicMock(),
+            "status_badge": MagicMock(),
+            "time_label": MagicMock(),
+            "format_label": MagicMock(),
+            "error_label": MagicMock(),
+            "response_box": MagicMock(),
+            "status_label": MagicMock(),
+        }
+        state = {"method": "DELETE", "last_body": "", "last_result": None}
+
+        update_response_card(
+            {"ok": True, "method": "DELETE", "status_code": 204, "reason": "No Content", "response_time_ms": 12.4, "is_json": False, "body": "", "error": "", "rate_limited": False},
+            state,
+            ui_refs,
+        )
+        self.assertEqual(ui_refs["format_label"].configure.call_args.kwargs["text"], "  Empty  ")
+        ui_refs["error_label"].pack_forget.assert_called()
+        self.assertFalse(handle_copy_response(state, ui_refs))
+
+        update_response_card(
+            {"ok": False, "method": "POST", "status_code": None, "reason": "Invalid JSON", "response_time_ms": 0.0, "is_json": False, "body": "", "error": "Invalid JSON body.", "rate_limited": False},
+            state,
+            ui_refs,
+        )
+        self.assertEqual(ui_refs["time_label"].configure.call_args.kwargs["text"], "Time: —")
+        self.assertEqual(ui_refs["status_badge"].configure.call_args.kwargs["text"], "  Invalid JSON  ")
+        ui_refs["error_label"].pack.assert_called()
+
+        ui_refs["response_box"].winfo_toplevel.return_value.clipboard_clear.side_effect = tk.TclError("unavailable")
+        state["last_body"] = '{"ok": true}'
+        self.assertFalse(handle_copy_response(state, ui_refs))
+
+        handle_clear_response(state, ui_refs)
+        self.assertEqual(state["last_body"], "")
+        self.assertEqual(ui_refs["status_badge"].configure.call_args.kwargs["text"], "  Ready  ")
 
 
 if __name__ == "__main__":
