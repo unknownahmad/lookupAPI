@@ -1,3 +1,7 @@
+# ==========================================
+# MIDTERM CODE
+# ==========================================
+
 from functools import partial
 import customtkinter as ctk
 
@@ -12,6 +16,14 @@ from ui.menu import (
     show_saved_apis_screen, wrap_long_text,
 )
 
+# ==========================================
+# FINAL CODE
+# ==========================================
+from ui.test_apis_screen import show_test_apis_screen
+
+# ==========================================
+# MIDTERM CODE
+# ==========================================
 MAX_VISIBLE_RESULTS = 75
 MAX_VISIBLE_ENDPOINTS = 50
 
@@ -244,8 +256,15 @@ def navigate_to(section, content_frame, state, callbacks):
         show_saved_apis_screen(content_frame, callbacks["home"])
     elif section == "activity":
         show_activity_screen(content_frame, callbacks["home"])
+    # ==========================================
+    # FINAL CODE
+    # ==========================================
+    elif section == "test_apis":
+        show_test_apis_screen(content_frame, callbacks["home"])
 
-
+# ==========================================
+# MIDTERM CODE
+# ==========================================
 def start_application(auto_mainloop=True):
     """Initialize the main LOOKUPAPI window and start the GUI event loop."""
     ctk.set_appearance_mode("dark")
@@ -265,6 +284,13 @@ def start_application(auto_mainloop=True):
     callbacks["discover"] = partial(navigate_to, "discover", content_frame, state, callbacks)
     callbacks["saved"] = partial(navigate_to, "saved", content_frame, state, callbacks)
     callbacks["activity"] = partial(navigate_to, "activity", content_frame, state, callbacks)
+    # ==========================================
+    # FINAL CODE
+    # ==========================================
+    callbacks["test_apis"] = partial(navigate_to, "test_apis", content_frame, state, callbacks)
+    # ==========================================
+    # MIDTERM CODE
+    # ==========================================
     callbacks["exit"] = window.destroy
 
     state["nav_buttons"] = create_sidebar(window, callbacks)

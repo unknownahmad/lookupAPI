@@ -1,3 +1,7 @@
+# ==========================================
+# MIDTERM CODE
+# ==========================================
+
 from functools import partial
 from tkinter import messagebox
 import customtkinter as ctk
@@ -45,7 +49,7 @@ def wrap_long_text(text, max_chars):
     return "\n".join(output_lines)
 
 
-def add_text_card(parent, title, value, accent, avail_w, wrap_mode="word", max_height=160):
+def add_text_card(parent, title, value, accent, avail_w, wrap_mode="word", max_height=160, mono=False):
     """Create a bordered detail card with an auto-sized, scrollable read-only text box."""
     card = ctk.CTkFrame(parent, fg_color=BG_CARD, corner_radius=6, border_width=1, border_color=BORDER_COLOR)
     card.pack(padx=6, pady=4, fill="x")
@@ -98,6 +102,16 @@ def create_sidebar(window, callbacks):
         btn.pack(padx=12, pady=3, fill="x")
         nav_buttons[key] = btn
 
+    # ==========================================
+    # FINAL CODE
+    # ==========================================
+    if "test_apis" in callbacks:
+        from ui.test_apis_screen import add_test_apis_nav_button
+        add_test_apis_nav_button(sidebar, nav_buttons, callbacks["test_apis"])
+
+    # ==========================================
+    # MIDTERM CODE
+    # ==========================================
     ctk.CTkButton(
         sidebar, text="Exit", command=callbacks["exit"], height=32,
         corner_radius=6, fg_color=BG_CARD, hover_color=COLOR_ERROR,
