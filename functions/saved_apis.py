@@ -5,62 +5,81 @@
 from functions.activity import save_activity
 from functions.list_of_APIs import add_API, collect_all_APIs, remove_API
 
+# ==========================================
+# FINAL CODE
+# ==========================================
+from functions.decorators import log_execution
+from functions.logger import get_logger
+from functions.models import SavedAPI
 
+
+@log_execution
 def save_API(api):
-    """Save an API to the database and record the action in the activity log."""
-    if not isinstance(api, dict):
-        print("Invalid API data.")
+    """Save an API (dict or SavedAPI) to the database and record the action in the activity log."""
+    logger = get_logger("lookupapi.saved_apis")
+
+    if isinstance(api, SavedAPI):
+        saved_model = api
+    elif isinstance(api, dict):
+        saved_model = SavedAPI.from_dict(api)
+    else:
+        logger.warning("Rejected invalid API payload type in save_API.")
         return False
 
-    name = str(api.get("name") or "").strip()
-    if not name:
-        print("Cannot save an API without a name.")
+    if not saved_model.name:
+        logger.warning("Cannot save an API without a name.")
         return False
 
-    # ==========================================
-    # FINAL CODE
-    # ==========================================
-    resolved_endpoint_url = str(api.get("endpoint_url") or api.get("base_url") or "").strip()
+    result = add_API(saved_model.to_dict())
 
     # ==========================================
     # MIDTERM CODE
     # ==========================================
-    saved_api = {
-        "name": name,
-        "category": str(api.get("category") or "General"),
-        "description": str(api.get("description") or "No description available"),
-        "endpoint_url": resolved_endpoint_url,
-        "documentation_url": str(api.get("documentation_url") or ""),
-        "http_method": str(api.get("http_method") or "GET"),
-        "requires_auth": bool(api.get("requires_auth", False)),
-    }
-
-    result = add_API(saved_api)
-
     if result:
-        save_activity(name, "Saved", "N/A")
-        print("API saved successfully!")
+        save_activity(saved_model.name, "Saved", "N/A")
+        logger.info("Saved API record successfully.")
 
     return result
 
 
+# ==========================================
+# FINAL CODE
+# ==========================================
+def get_saved_api_models():
+    """Return all saved APIs from the database as SavedAPI model objects."""
+    rows = collect_all_APIs()
+    models = []
+    for row in rows:
+        if isinstance(row, SavedAPI):
+            models.append(row)
+        elif isinstance(row, dict):
+            models.append(SavedAPI.from_dict(row))
+    return models
+
+
+# ==========================================
+# MIDTERM CODE
+# ==========================================
+@log_execution
 def get_saved_APIs():
-    """Return all saved APIs from the database."""
-    return collect_all_APIs()
+    """Return all saved APIs from the database as UI- and DB-compatible dictionaries."""
+    return [model.to_dict() for model in get_saved_api_models()]
 
 
+@log_execution
 def remove_saved_API(api_id):
     """Remove a saved API by ID and record the action in the activity log."""
+    logger = get_logger("lookupapi.saved_apis")
     api_name = f"API #{api_id}"
-    for api in collect_all_APIs():
-        if str(api.get("api_id")) == str(api_id):
-            api_name = str(api.get("name") or api_name)
+    for api in get_saved_api_models():
+        if api.api_id is not None and str(api.api_id) == str(api_id):
+            api_name = api.name or api_name
             break
 
     result = remove_API(api_id)
 
     if result:
         save_activity(api_name, "Removed", "N/A")
-        print("API removed successfully!")
+        logger.info("Removed saved API record successfully.")
 
     return result
