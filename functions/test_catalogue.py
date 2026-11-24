@@ -5,88 +5,144 @@
 import json
 import os
 import re
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
+
+from functions.decorators import log_execution
+from functions.logger import get_logger
+from functions.models import CatalogAPI
 
 CATALOGUE_FILE = "data/verified_free_apis.json"
 
 
+def _as_dict(api):
+    """Return a dictionary view of either a CatalogAPI model or a plain dict."""
+    if isinstance(api, CatalogAPI):
+        return api.to_dict()
+    return api if isinstance(api, dict) else None
+
+
 def is_valid_catalogue_entry(entry):
-    """Return True if a catalogue entry is unauthenticated and has required valid fields."""
-    if not isinstance(entry, dict):
+    """Return True if a catalogue entry is unauthenticated and has valid required fields."""
+    if isinstance(entry, CatalogAPI):
+        model = entry
+        raw_auth = model.auth
+    elif isinstance(entry, dict):
+        raw_auth = entry.get("authentication")
+        if raw_auth is None:
+            raw_auth = entry.get("auth")
+        model = CatalogAPI.from_dict(entry)
+    else:
         return False
-    if str(entry.get("authentication") or "").strip().upper() != "NONE":
+
+    if str(raw_auth or "").strip().upper() != "NONE":
         return False
-
-    name = str(entry.get("api_name") or "").strip()
-    base_url = str(entry.get("base_url") or "").strip()
-    endpoint = str(entry.get("working_get_endpoint") or "").strip()
-    if not name or not base_url or not endpoint:
+    if not model.name or not model.endpoint_url or not model.sample_endpoint:
         return False
-
-    parsed = urlparse(base_url)
-    return parsed.scheme in ("http", "https") and bool(parsed.hostname)
+    return model.has_valid_url()
 
 
-def load_verified_free_apis(file_path=CATALOGUE_FILE):
-    """Load and validate the approved no-auth public API catalogue from JSON."""
+def iter_catalogue_apis(file_path=CATALOGUE_FILE):
+    """Yield validated, deduplicated CatalogAPI objects from the verified JSON catalogue."""
+    logger = get_logger("lookupapi.catalogue")
     if not os.path.exists(file_path):
-        print("Verified API catalogue file not found:", file_path)
-        return []
+        logger.warning("Verified API catalogue file not found.")
+        return
 
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             payload = json.load(file)
     except (OSError, ValueError) as error:
-        print("Error reading verified API catalogue:", error)
-        return []
+        logger.error("Error reading verified API catalogue (%s).", type(error).__name__)
+        return
 
     raw_apis = payload.get("apis") if isinstance(payload, dict) else []
     if not isinstance(raw_apis, list):
-        return []
+        logger.warning("Verified API catalogue payload has an invalid 'apis' list.")
+        return
 
-    approved = []
     seen_keys = set()
     for entry in raw_apis:
         if not is_valid_catalogue_entry(entry):
             continue
+        model = entry if isinstance(entry, CatalogAPI) else CatalogAPI.from_dict(entry)
         dedupe_key = (
-            str(entry.get("api_name") or "").strip().lower(),
-            str(entry.get("base_url") or "").strip().rstrip("/").lower(),
-            str(entry.get("working_get_endpoint") or "").strip(),
+            model.name.lower(),
+            model.endpoint_url.rstrip("/").lower(),
+            model.sample_endpoint,
         )
         if dedupe_key in seen_keys:
             continue
         seen_keys.add(dedupe_key)
-        approved.append(entry)
+        yield model
 
+
+def iter_apis_by_category(apis, category=None):
+    """Yield catalogue APIs (CatalogAPI or dict) matching a category, or all if None/'All'."""
+    if apis is None:
+        return
+
+    target = str(category or "").strip().lower()
+    include_all = target in ("", "all")
+
+    for api in apis:
+        if isinstance(api, CatalogAPI):
+            api_cat = api.category
+        elif isinstance(api, dict):
+            api_cat = str(api.get("category") or "Other").strip() or "Other"
+        else:
+            continue
+
+        if include_all or api_cat.lower() == target:
+            yield api
+
+
+@log_execution
+def load_verified_free_apis(file_path=CATALOGUE_FILE):
+    """Load and validate the approved no-auth public API catalogue as UI-compatible dicts."""
+    logger = get_logger("lookupapi.catalogue")
+    approved = [api.to_dict() for api in iter_catalogue_apis(file_path=file_path)]
+    logger.info("Loaded %d verified catalogue APIs.", len(approved))
     return approved
 
 
 def group_apis_by_category(apis):
-    """Group approved APIs into an alphabetically ordered category dictionary."""
-    if not isinstance(apis, list):
+    """Group approved APIs into an alphabetically ordered category dictionary sorted by name."""
+    if not isinstance(apis, (list, tuple)):
         return {}
 
     grouped = {}
-    for api in apis:
-        if not isinstance(api, dict):
-            continue
-        category = str(api.get("category") or "Other").strip() or "Other"
+    for api in iter_apis_by_category(apis):
+        category = (
+            api.category
+            if isinstance(api, CatalogAPI)
+            else str(api.get("category") or "Other").strip() or "Other"
+        )
         grouped.setdefault(category, []).append(api)
 
-    return {cat: grouped[cat] for cat in sorted(grouped)}
+    return {
+        cat: sorted(
+            grouped[cat],
+            key=lambda item: (
+                item.name.lower()
+                if isinstance(item, CatalogAPI)
+                else str(item.get("api_name") or item.get("name") or "").strip().lower()
+            ),
+        )
+        for cat in sorted(grouped)
+    }
 
 
 def format_example_endpoint(api):
     """Build the full example GET endpoint path including query parameters."""
-    if not isinstance(api, dict):
+    data = _as_dict(api)
+    if data is None:
         return "Not available"
 
-    endpoint = str(api.get("working_get_endpoint") or "").strip()
+    endpoint = str(data.get("working_get_endpoint") or data.get("sample_endpoint") or "").strip()
     if not endpoint:
         return "Not available"
 
-    params = api.get("example_query_parameters")
+    params = data.get("example_query_parameters")
     if isinstance(params, dict):
         clean_params = {str(k).strip(): str(v) for k, v in params.items() if str(k or "").strip()}
         if clean_params:
@@ -96,7 +152,8 @@ def format_example_endpoint(api):
 
 def extract_attribution_info(api):
     """Identify license or attribution notes stated in the catalogue entry."""
-    evidence = str(api.get("free_access_evidence") or "") if isinstance(api, dict) else ""
+    data = _as_dict(api)
+    evidence = str(data.get("free_access_evidence") or "") if data is not None else ""
     lower = evidence.lower()
     notes = []
 
@@ -126,7 +183,8 @@ def extract_attribution_info(api):
 
 def extract_rate_limit_info(api):
     """Extract documented rate limits or usage guidance from catalogue evidence."""
-    evidence = str(api.get("free_access_evidence") or "") if isinstance(api, dict) else ""
+    data = _as_dict(api)
+    evidence = str(data.get("free_access_evidence") or "") if data is not None else ""
     lower = evidence.lower()
     notes = []
 
