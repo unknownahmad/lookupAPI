@@ -2,7 +2,6 @@
 # FINAL CODE
 # ==========================================
 
-import json
 import re
 from urllib.parse import urlparse
 
@@ -62,22 +61,3 @@ def validate_request_headers(headers):
         clean_headers[clean_key] = clean_val
 
     return True, clean_headers, ""
-
-
-def validate_json_body(raw_body):
-    """Validate an optional JSON request body string before sending POST or PUT requests."""
-    if raw_body is None:
-        return True, None, ""
-    if not isinstance(raw_body, str):
-        return True, raw_body, ""
-
-    cleaned = raw_body.strip()
-    if not cleaned:
-        return True, None, ""
-
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError as err:
-        return False, None, f"Invalid JSON body (line {err.lineno}, column {err.colno}): {err.msg}."
-
-    return True, parsed, ""

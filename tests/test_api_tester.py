@@ -13,11 +13,11 @@ import requests
 
 from functions.api_tester import (
     DEFAULT_USER_AGENT,
+    SUPPORTED_METHODS,
     build_default_request,
     format_response_body,
     send_api_request,
     send_get_request,
-    validate_json_body,
     validate_request_headers,
     validate_request_url,
 )
@@ -44,7 +44,7 @@ def make_mock_response(status_code=200, reason="OK", content_type="application/j
 
 
 class TestApiTester(unittest.TestCase):
-    """Offline unit tests for HTTP request building, validation, formatting, and error handling."""
+    """Offline unit tests for GET-only HTTP request validation, formatting, and error handling."""
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -63,7 +63,8 @@ class TestApiTester(unittest.TestCase):
             handler.close()
             base_logger.removeHandler(handler)
 
-    def test_build_default_request_populates_url_params_and_headers(self):
+    def test_build_default_request_populates_get_url_params_and_headers(self):
+        self.assertEqual(SUPPORTED_METHODS, ("GET",))
         entry = {
             "base_url": "https://api.example.test/v1/",
             "working_get_endpoint": "latest",
@@ -77,6 +78,7 @@ class TestApiTester(unittest.TestCase):
         self.assertEqual(req["headers"]["Accept"], "application/json")
         self.assertEqual(req["headers"]["User-Agent"], DEFAULT_USER_AGENT)
         self.assertEqual(req["headers"]["X-Custom"], "Demo")
+        self.assertNotIn("body", req)
         self.assertNotIn("@", DEFAULT_USER_AGENT)
 
         catalog_model = CatalogAPI(
@@ -127,7 +129,7 @@ class TestApiTester(unittest.TestCase):
 
         self.assertEqual(build_default_request(None)["url"], "")
 
-        with patch("functions.api_tester.requests.request") as mock_req:
+        with patch("functions.api_tester.requests.get") as mock_get:
             res_hdr = send_api_request("GET", "https://api.example.test/v1", headers={"X-Bad": "a\nb"})
             self.assertFalse(res_hdr["ok"])
             self.assertEqual(res_hdr["reason"], "Invalid Header")
@@ -137,21 +139,7 @@ class TestApiTester(unittest.TestCase):
                 self.assertFalse(res_to["ok"])
                 self.assertEqual(res_to["reason"], "Invalid Timeout")
 
-            mock_req.assert_not_called()
-
-    def test_validate_json_body_handles_empty_valid_and_invalid_json(self):
-        self.assertEqual(validate_json_body(None), (True, None, ""))
-        self.assertEqual(validate_json_body("   "), (True, None, ""))
-
-        ok, parsed, err = validate_json_body('{"name": "LOOKUPAPI", "count": 3}')
-        self.assertTrue(ok)
-        self.assertEqual(parsed, {"name": "LOOKUPAPI", "count": 3})
-        self.assertEqual(err, "")
-
-        ok_bad, parsed_bad, err_bad = validate_json_body('{"broken": [1, 2')
-        self.assertFalse(ok_bad)
-        self.assertIsNone(parsed_bad)
-        self.assertIn("Invalid JSON body", err_bad)
+            mock_get.assert_not_called()
 
     def test_format_response_body_handles_json_raw_text_and_invalid_json(self):
         json_resp = make_mock_response(text='{"b":2,"a":1}')
@@ -172,43 +160,45 @@ class TestApiTester(unittest.TestCase):
         self.assertEqual(body_bad, "{not json")
         self.assertIn("not valid JSON", warning_bad)
 
-    def test_send_api_request_methods_and_validation_mocked(self):
-        with patch("functions.api_tester.requests.request") as mock_req:
-            mock_req.return_value = make_mock_response(200, "OK", text='{"ok": true}')
-            res_get = send_get_request("https://api.example.test/v1", params={"q": "test"})
-            self.assertTrue(res_get["ok"])
-            self.assertEqual(res_get["status_code"], 200)
-            self.assertEqual(res_get["method"], "GET")
+    def test_send_get_request_succeeds_mocked(self):
+        with patch("functions.api_tester.requests.get") as mock_get:
+            mock_get.return_value = make_mock_response(200, "OK", text='{"ok": true}')
+            res_helper = send_get_request(
+                "https://api.example.test/v1",
+                params={"q": "python"},
+                headers={"Accept": "application/json"},
+                timeout=10,
+            )
+            self.assertTrue(res_helper["ok"])
+            self.assertEqual(res_helper["status_code"], 200)
+            self.assertEqual(res_helper["method"], "GET")
+            self.assertTrue(res_helper["is_json"])
+            mock_get.assert_called_once_with(
+                "https://api.example.test/v1",
+                params={"q": "python"},
+                headers={"Accept": "application/json"},
+                timeout=10,
+            )
 
-            mock_req.return_value = make_mock_response(201, "Created", text='{"id": 1}')
-            res_post = send_api_request("POST", "https://api.example.test/items", json_body='{"name": "a"}')
-            self.assertTrue(res_post["ok"])
-            self.assertEqual(res_post["status_code"], 201)
-            self.assertEqual(mock_req.call_args.kwargs["json"], {"name": "a"})
+            mock_get.reset_mock()
+            mock_get.return_value = make_mock_response(200, "OK", text='{"items": [1, 2]}')
+            res_direct = send_api_request("get", "https://api.example.test/items")
+            self.assertTrue(res_direct["ok"])
+            self.assertEqual(res_direct["method"], "GET")
 
-            mock_req.return_value = make_mock_response(200, "OK", text='{"updated": true}')
-            res_put = send_api_request("PUT", "https://api.example.test/items/1", json_body='{"name": "b"}')
-            self.assertTrue(res_put["ok"])
-            self.assertEqual(mock_req.call_args.kwargs["json"], {"name": "b"})
+    def test_rejects_unsupported_methods_without_network_calls(self):
+        with patch("functions.api_tester.requests.get") as mock_get:
+            for unsupported in ("POST", "PUT", "DELETE", "TRACE"):
+                res = send_api_request(unsupported, "https://api.example.test/v1")
+                self.assertFalse(res["ok"], f"Expected {unsupported} to be rejected")
+                self.assertEqual(res["method"], unsupported)
+                self.assertEqual(res["reason"], "Unsupported Method")
+                self.assertIn("GET", res["error"])
 
-            mock_req.return_value = make_mock_response(204, "No Content", content_type="", text="")
-            res_del = send_api_request("DELETE", "https://api.example.test/items/1")
-            self.assertTrue(res_del["ok"])
-            self.assertEqual(res_del["status_code"], 204)
-            self.assertIsNone(mock_req.call_args.kwargs["json"])
-
-            mock_req.reset_mock()
-            res_bad_method = send_api_request("TRACE", "https://api.example.test/v1")
-            self.assertFalse(res_bad_method["ok"])
-            self.assertEqual(res_bad_method["reason"], "Unsupported Method")
-
-            res_bad_json = send_api_request("POST", "https://api.example.test/items", json_body="{bad")
-            self.assertFalse(res_bad_json["ok"])
-            self.assertEqual(res_bad_json["reason"], "Invalid JSON")
-            mock_req.assert_not_called()
+            mock_get.assert_not_called()
 
     def test_send_api_request_never_logs_sensitive_headers_or_params(self):
-        with patch("functions.api_tester.requests.request", return_value=make_mock_response(200, "OK", text="{}")), \
+        with patch("functions.api_tester.requests.get", return_value=make_mock_response(200, "OK", text="{}")), \
              self.assertLogs(LOGGER_NAME, level="INFO") as captured:
             res = send_api_request(
                 "GET",
@@ -223,29 +213,29 @@ class TestApiTester(unittest.TestCase):
         self.assertNotIn("api.example.test", combined)
 
     def test_send_api_request_network_and_http_errors_mocked(self):
-        with patch("functions.api_tester.requests.request", side_effect=requests.exceptions.Timeout("timeout")):
+        with patch("functions.api_tester.requests.get", side_effect=requests.exceptions.Timeout("timeout")):
             res_to = send_api_request("GET", "https://api.example.test/slow", timeout=5)
             self.assertFalse(res_to["ok"])
             self.assertEqual(res_to["reason"], "Timeout")
             self.assertIn("timed out after 5 seconds", res_to["error"])
 
-        with patch("functions.api_tester.requests.request", side_effect=requests.exceptions.ConnectionError("refused")):
+        with patch("functions.api_tester.requests.get", side_effect=requests.exceptions.ConnectionError("refused")):
             res_conn = send_api_request("GET", "https://api.example.test/down")
             self.assertFalse(res_conn["ok"])
             self.assertEqual(res_conn["reason"], "Connection Error")
 
-        with patch("functions.api_tester.requests.request", return_value=make_mock_response(404, "Not Found", text='{"error":"missing"}')):
+        with patch("functions.api_tester.requests.get", return_value=make_mock_response(404, "Not Found", text='{"error":"missing"}')):
             res_404 = send_api_request("GET", "https://api.example.test/missing")
             self.assertFalse(res_404["ok"])
             self.assertEqual(res_404["status_code"], 404)
 
         mock_429 = make_mock_response(429, "Too Many Requests", text='{"error":"slow down"}', headers={"Retry-After": "30"})
-        with patch("functions.api_tester.requests.request", return_value=mock_429) as m_req:
+        with patch("functions.api_tester.requests.get", return_value=mock_429) as m_get:
             res_429 = send_api_request("GET", "https://api.example.test/limit")
             self.assertFalse(res_429["ok"])
             self.assertTrue(res_429["rate_limited"])
             self.assertIn("Retry after 30s", res_429["error"])
-            self.assertEqual(m_req.call_count, 1)
+            self.assertEqual(m_get.call_count, 1)
 
     def test_format_response_body_truncates_oversized_responses(self):
         large_resp = make_mock_response(content_type="text/plain", text="A" * 500)
@@ -264,10 +254,10 @@ class TestApiTester(unittest.TestCase):
             "response_box": MagicMock(),
             "status_label": MagicMock(),
         }
-        state = {"method": "DELETE", "last_body": "", "last_result": None}
+        state = {"method": "GET", "last_body": "", "last_result": None}
 
         update_response_card(
-            {"ok": True, "method": "DELETE", "status_code": 204, "reason": "No Content", "response_time_ms": 12.4, "is_json": False, "body": "", "error": "", "rate_limited": False},
+            {"ok": True, "method": "GET", "status_code": 200, "reason": "OK", "response_time_ms": 12.4, "is_json": False, "body": "", "error": "", "rate_limited": False},
             state,
             ui_refs,
         )
@@ -276,12 +266,12 @@ class TestApiTester(unittest.TestCase):
         self.assertFalse(handle_copy_response(state, ui_refs))
 
         update_response_card(
-            {"ok": False, "method": "POST", "status_code": None, "reason": "Invalid JSON", "response_time_ms": 0.0, "is_json": False, "body": "", "error": "Invalid JSON body.", "rate_limited": False},
+            {"ok": False, "method": "GET", "status_code": None, "reason": "Invalid URL", "response_time_ms": 0.0, "is_json": False, "body": "", "error": "Request URL cannot be empty.", "rate_limited": False},
             state,
             ui_refs,
         )
         self.assertEqual(ui_refs["time_label"].configure.call_args.kwargs["text"], "Time: —")
-        self.assertEqual(ui_refs["status_badge"].configure.call_args.kwargs["text"], "  Invalid JSON  ")
+        self.assertEqual(ui_refs["status_badge"].configure.call_args.kwargs["text"], "  Invalid URL  ")
         ui_refs["error_label"].pack.assert_called()
 
         ui_refs["response_box"].winfo_toplevel.return_value.clipboard_clear.side_effect = tk.TclError("unavailable")

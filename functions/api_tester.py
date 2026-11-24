@@ -12,19 +12,18 @@ from functions.logger import get_logger
 from functions.models import CatalogAPI
 from functions.validators import (
     HEADER_NAME_REGEX,
-    validate_json_body,
     validate_request_headers,
     validate_request_url,
 )
 
 DEFAULT_USER_AGENT = "LOOKUPAPI/1.0 (Python Desktop API Explorer; University Course Project)"
 DEFAULT_TIMEOUT = 15
-SUPPORTED_METHODS = ("GET", "POST", "PUT", "DELETE")
+SUPPORTED_METHODS = ("GET",)
 MAX_RESPONSE_DISPLAY_CHARS = 250_000
 
 
 def build_default_request(api):
-    """Build initial request method, URL, query parameters, headers, and empty body from a catalogue entry."""
+    """Build initial GET request URL, query parameters, and headers from a catalogue entry."""
     safe_api = api.to_dict() if isinstance(api, CatalogAPI) else (api if isinstance(api, dict) else {})
     base_url = str(safe_api.get("base_url") or safe_api.get("endpoint_url") or "").strip().rstrip("/")
     endpoint = str(safe_api.get("working_get_endpoint") or safe_api.get("sample_endpoint") or "").strip()
@@ -48,7 +47,7 @@ def build_default_request(api):
             if clean_key:
                 headers[clean_key] = str(value)
 
-    return {"method": "GET", "url": full_url, "params": params, "headers": headers, "body": ""}
+    return {"method": "GET", "url": full_url, "params": params, "headers": headers}
 
 
 def format_response_body(response, max_chars=MAX_RESPONSE_DISPLAY_CHARS):
@@ -107,24 +106,16 @@ def _build_result(
     }
 
 
-def _prepare_request_inputs(method, url, params, headers, json_body, timeout):
-    """Validate method, URL, JSON body, timeout, query parameters, and headers before sending."""
+def _prepare_request_inputs(method, url, params, headers, timeout):
+    """Validate GET method, URL, timeout, query parameters, and headers before sending."""
     clean_method = str(method or "GET").strip().upper()
     if clean_method not in SUPPORTED_METHODS:
-        msg = f"Unsupported HTTP method '{clean_method}'. Choose GET, POST, PUT, or DELETE."
+        msg = f"Unsupported HTTP method '{clean_method}'. Only GET requests are supported."
         return None, _build_result(False, clean_method, reason="Unsupported Method", error=msg)
 
     is_valid_url, validated_or_err = validate_request_url(url)
     if not is_valid_url:
         return None, _build_result(False, clean_method, error=validated_or_err)
-
-    parsed_json = None
-    if clean_method in ("POST", "PUT"):
-        is_valid_json, parsed_json, json_err = validate_json_body(json_body)
-        if not is_valid_json:
-            return None, _build_result(
-                False, clean_method, reason="Invalid JSON", error=json_err, final_url=validated_or_err
-            )
 
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
         return None, _build_result(
@@ -149,28 +140,25 @@ def _prepare_request_inputs(method, url, params, headers, json_body, timeout):
         )
 
     return {
-        "method": clean_method,
+        "method": "GET",
         "url": validated_or_err,
         "params": clean_params or None,
         "headers": clean_headers or None,
-        "json": parsed_json,
         "timeout": timeout,
     }, None
 
 
 def _execute_http_request(prepared):
-    """Execute the prepared HTTP request and map requests exceptions to result dictionaries."""
+    """Execute the prepared GET request and map requests exceptions to result dictionaries."""
     logger = get_logger("lookupapi.api_tester")
     method, target_url, timeout = prepared["method"], prepared["url"], prepared["timeout"]
     start = time.perf_counter()
 
     try:
-        response = requests.request(
-            method,
+        response = requests.get(
             target_url,
             params=prepared["params"],
             headers=prepared["headers"],
-            json=prepared["json"],
             timeout=timeout,
         )
         return response, round((time.perf_counter() - start) * 1000, 1), None
@@ -245,9 +233,9 @@ def _handle_http_response(method, response, elapsed_ms):
 
 
 @log_execution
-def send_api_request(method, url, params=None, headers=None, json_body=None, timeout=DEFAULT_TIMEOUT):
-    """Send a single GET, POST, PUT, or DELETE request and return a structured result dictionary."""
-    prepared, validation_error = _prepare_request_inputs(method, url, params, headers, json_body, timeout)
+def send_api_request(method, url, params=None, headers=None, timeout=DEFAULT_TIMEOUT):
+    """Send a single GET request and return a structured result dictionary."""
+    prepared, validation_error = _prepare_request_inputs(method, url, params, headers, timeout)
     if validation_error is not None:
         get_logger("lookupapi.api_tester").warning(
             "Rejected %s request before sending (%s).",
