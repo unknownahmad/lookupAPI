@@ -21,7 +21,7 @@ When learning how to work with REST APIs, a lot of time goes into finding public
 - **Requests** (`requests`) for live HTTP calls to APIs.guru and public REST APIs
 - **PyMySQL** (`PyMySQL`) + **MySQL Server** for persistent storage
 - **python-dotenv** (`python-dotenv`) for reading database credentials from `.env`
-- **Python Standard Library:** `unittest`, `unittest.mock`, `logging`, `functools`, `re`, `urllib.parse`, `json`, `os`, `time`, `datetime`, `threading`, `queue`, `tempfile`
+- **Python Standard Library:** `unittest`, `logging`, `functools`, `re`, `urllib.parse`, `json`, `os`, `time`, `datetime`, `threading`, `queue`
 
 ## Project Folder Structure
 
@@ -48,12 +48,7 @@ lookupAPI/
 │   ├── logger.py                   # Standard Python logging configuration (console + file)
 │   └── utils.py                    # Type conversion helpers and activity log read/write helpers
 ├── tests/
-│   ├── test_models.py              # Class inheritance, round-trips, and URL/port checks
-│   ├── test_decorators.py          # @log_execution metadata, timing, errors, and secret safety
-│   ├── test_catalogue.py           # Catalogue validation, generators, lambda sorting, and helpers
-│   ├── test_api_directory.py       # APIs.guru fetch/caching, search, and OpenAPI spec parsing
-│   ├── test_saved_apis.py          # SavedAPI mapping, activity file handling, and mocked DB CRUD
-│   └── test_api_tester.py          # GET tester, method checks, header validation, response panel
+│   └── test_core.py                # 3 unit tests for URL validation, endpoint formatting, and API search
 └── ui/
     ├── window.py                   # Main window, navigation, and Discover APIs screen
     ├── menu.py                     # Sidebar, Home, My Saved APIs, and Activity History screens
@@ -143,7 +138,7 @@ The GUI window stays open until you click **Exit** in the sidebar or close the w
 
 ## How to Run the Unit Tests
 
-Run the full offline unit test suite (42 tests across 6 test files, using mocks and temporary files so no network or MySQL server is needed):
+Run the three simple unit tests in `tests/test_core.py` covering `is_valid_url()`, `format_example_endpoint()`, and `search_apis()` (these tests focus on those three backend functions rather than the entire application):
 
 ```bash
 python -m unittest discover -s tests -v
@@ -196,20 +191,20 @@ https://github.com/user-attachments/assets/3c283c28-6a3c-4f20-99c2-334daa9a5a90
 
 | Requirement | Where It Is Implemented in the Backend | Unit Tests |
 |---|---|---|
-| Dictionaries | Catalogue entries, MySQL row dicts, HTTP params/headers/results (`models.py`, `api_tester.py`, `catalogue.py`, `database.py`) | `test_models.py`, `test_api_tester.py`, `test_catalogue.py` |
-| Lists | API lists, grouped category lists, parsed endpoints, activity log lines (`catalogue.py`, `api_directory.py`, `utils.py`) | `test_catalogue.py`, `test_api_directory.py`, `test_saved_apis.py` |
-| Sets | Catalogue deduplication keys and allowed OpenAPI HTTP methods (`catalogue.py`, `api_directory.py`) | `test_catalogue.py`, `test_api_directory.py` |
-| Tuples | `SUPPORTED_METHODS = ("GET",)`, `REQUIRED_API_FIELDS`, dedupe tuples, validator `(ok, value)` pairs (`api_tester.py`, `database.py`, `validators.py`) | `test_api_tester.py`, `test_saved_apis.py` |
-| Generators (`yield`) | `iter_catalogue_apis()` and `iter_apis_by_category()` (`functions/catalogue.py`) | `test_catalogue.py` |
-| Lambda expressions | Alphabetical API sorting by name in `group_apis_by_category()` (`functions/catalogue.py`) | `test_catalogue.py` |
-| Classes (`>= 2`) & Inheritance | `APIResource` base class, `CatalogAPI(APIResource)`, and `SavedAPI(APIResource)` (`functions/models.py`) | `test_models.py`, `test_catalogue.py`, `test_saved_apis.py` |
-| Custom decorator | `@log_execution` using `functools.wraps` (`functions/decorators.py`) | `test_decorators.py`, `test_api_tester.py`, `test_saved_apis.py` |
-| Exception handling | Targeted `try`/`except` for `OSError`, `ValueError`, `pymysql.Error`, and `requests.exceptions.*` | `test_saved_apis.py`, `test_api_tester.py`, `test_catalogue.py`, `test_api_directory.py` |
-| Regular expressions | `URL_REGEX`, `HEADER_NAME_REGEX`, and rate-limit patterns (`validators.py`, `catalogue.py`) | `test_models.py`, `test_api_tester.py`, `test_catalogue.py` |
-| Standard `logging` | `configure_logger()` and `get_logger()` (`functions/logger.py`) | `test_decorators.py`, `test_api_tester.py`, `test_saved_apis.py` |
-| External API integration | Live HTTP integration via `requests` (`api_directory.py`, `api_tester.py`) | `test_api_tester.py`, `test_api_directory.py` |
-| MySQL integration | `PyMySQL` CRUD (`database.py`) configured via `.env` | `test_saved_apis.py`, `test_models.py` |
-| Unit testing (`>= 3` functions) | 42 offline unit tests across 6 modules in `tests/` | `python -m unittest discover -s tests -v` |
+| Dictionaries | Catalogue entries, MySQL row dicts, HTTP params/headers/results (`models.py`, `api_tester.py`, `catalogue.py`, `database.py`) | `tests/test_core.py` (`format_example_endpoint()`, `search_apis()`) |
+| Lists | API lists, grouped category lists, parsed endpoints, activity log lines (`catalogue.py`, `api_directory.py`, `utils.py`) | `tests/test_core.py` (`search_apis()`) |
+| Sets | Catalogue deduplication keys and allowed OpenAPI HTTP methods (`catalogue.py`, `api_directory.py`) | — |
+| Tuples | `SUPPORTED_METHODS = ("GET",)`, `REQUIRED_API_FIELDS`, dedupe tuples, validator `(ok, value)` pairs (`api_tester.py`, `database.py`, `validators.py`) | — |
+| Generators (`yield`) | `iter_catalogue_apis()` and `iter_apis_by_category()` (`functions/catalogue.py`) | — |
+| Lambda expressions | Alphabetical API sorting by name in `group_apis_by_category()` (`functions/catalogue.py`) | — |
+| Classes (`>= 2`) & Inheritance | `APIResource` base class, `CatalogAPI(APIResource)`, and `SavedAPI(APIResource)` (`functions/models.py`) | — |
+| Custom decorator | `@log_execution` using `functools.wraps` (`functions/decorators.py`) | — |
+| Exception handling | Targeted `try`/`except` for `OSError`, `ValueError`, `pymysql.Error`, and `requests.exceptions.*` | — |
+| Regular expressions | `URL_REGEX`, `HEADER_NAME_REGEX`, and rate-limit patterns (`validators.py`, `catalogue.py`) | `tests/test_core.py` (`is_valid_url()`) |
+| Standard `logging` | `configure_logger()` and `get_logger()` (`functions/logger.py`) | — |
+| External API integration | Live HTTP integration via `requests` (`api_directory.py`, `api_tester.py`) | — |
+| MySQL integration | `PyMySQL` CRUD (`database.py`) configured via `.env` | — |
+| Unit testing (`>= 3` functions) | 3 simple unit tests covering `is_valid_url()`, `format_example_endpoint()`, and `search_apis()` in `tests/test_core.py` | `python -m unittest discover -s tests -v` |
 | Functional decomposition | 10 backend Python files (`main.py` + `functions/*.py`), all <= 300 lines and all functions <= 80 lines | Verified via AST audit |
 
 ## Acknowledgements & AI Assistance Disclosure
