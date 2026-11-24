@@ -7,11 +7,11 @@ import queue
 import threading
 import customtkinter as ctk
 
-from functions.api_tester import SUPPORTED_METHODS, build_default_request, send_api_request
+from functions.api_tester import build_default_request, send_api_request
 from functions.request_history import HISTORY_FILE, save_request_history
 from ui.response_panel import build_response_card, update_response_card
 from ui.theme import (
-    ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD, BG_CODE,
+    ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD,
     BG_SURFACE, BG_SURFACE_HOVER, BORDER_COLOR, BORDER_SUBTLE, BTN_HEIGHT,
     BTN_HEIGHT_SM, COLOR_ERROR, COLOR_INFO_TEXT, METHOD_COLORS, RADIUS_CONTROL,
     TEXT_MAIN, TEXT_MUTED, TEXT_SECONDARY, font_mono, font_ui,
@@ -74,36 +74,9 @@ def collect_key_value_pairs(rows_list):
     return result
 
 
-def on_method_change(selected_method, tester_state, ui_refs):
-    """Update HTTP method styling and toggle the JSON request body editor."""
-    method = str(selected_method or "GET").strip().upper()
-    tester_state["method"] = method
-    color = METHOD_COLORS.get(method, ACCENT_PRIMARY)
-    ui_refs["method_menu"].configure(fg_color=color, button_color=color)
-
-    if method in ("POST", "PUT"):
-        ui_refs["delete_note"].pack_forget()
-        ui_refs["body_section"].pack(padx=12, pady=(0, 12), fill="x")
-        ui_refs["status_label"].configure(
-            text=f"Method set to {method} — enter an optional JSON body and click Send Request.",
-            text_color=ACCENT_SECONDARY,
-        )
-    elif method == "DELETE":
-        ui_refs["body_section"].pack_forget()
-        ui_refs["delete_note"].pack(padx=12, pady=(0, 12), fill="x")
-        ui_refs["status_label"].configure(
-            text="Method set to DELETE — sends without a body by default.",
-            text_color=TEXT_MUTED,
-        )
-    else:
-        ui_refs["body_section"].pack_forget()
-        ui_refs["delete_note"].pack_forget()
-        ui_refs["status_label"].configure(text="Method set to GET — ready to send request.", text_color=TEXT_MUTED)
-
-
-def request_worker(method, url, params, headers, json_body, result_queue):
-    """Run send_api_request in a background thread and return its result via a queue."""
-    outcome = send_api_request(method, url, params=params, headers=headers, json_body=json_body)
+def request_worker(url, params, headers, result_queue):
+    """Run a GET send_api_request call in a background thread and push its result to a queue."""
+    outcome = send_api_request("GET", url, params=params, headers=headers)
     result_queue.put(outcome)
 
 
@@ -134,7 +107,7 @@ def poll_test_response(result_queue, req_id, request_url, tester_state, ui_refs)
     if tester_state.get("record_history", True):
         save_request_history(
             tester_state.get("api_name", "Custom Request"),
-            result.get("method") or tester_state.get("method", "GET"),
+            "GET",
             request_url,
             result,
             file_path=tester_state.get("history_file", HISTORY_FILE),
@@ -147,16 +120,14 @@ def poll_test_response(result_queue, req_id, request_url, tester_state, ui_refs)
 
 
 def handle_send_request(tester_state, ui_refs):
-    """Collect request inputs and execute the selected HTTP request on a background thread."""
+    """Collect URL, query parameters, and headers and execute a GET request on a background thread."""
     if tester_state["in_flight"]:
         return
 
-    method = ui_refs["method_menu"].get().strip().upper()
-    tester_state["method"] = method
+    tester_state["method"] = "GET"
     url = ui_refs["url_entry"].get().strip()
     params = collect_key_value_pairs(tester_state["param_rows"])
     headers = collect_key_value_pairs(tester_state["header_rows"])
-    raw_body = ui_refs["body_box"].get("1.0", "end").strip() if method in ("POST", "PUT") else None
 
     tester_state["request_id"] += 1
     req_id = tester_state["request_id"]
@@ -167,18 +138,18 @@ def handle_send_request(tester_state, ui_refs):
     ui_refs["time_label"].configure(text="Time: ...")
     ui_refs["format_label"].configure(text="", fg_color="transparent", text_color=TEXT_MUTED)
     ui_refs["error_label"].configure(text="", text_color=TEXT_MUTED)
-    ui_refs["status_label"].configure(text=f"Sending {method} request...", text_color=ACCENT_SECONDARY)
+    ui_refs["status_label"].configure(text="Sending GET request...", text_color=ACCENT_SECONDARY)
 
     resp_box = ui_refs["response_box"]
     resp_box.configure(state="normal")
     resp_box.delete("1.0", "end")
-    resp_box.insert("1.0", f"Sending {method} request, waiting for response...")
+    resp_box.insert("1.0", "Sending GET request, waiting for response...")
     resp_box.configure(state="disabled")
 
     result_queue = queue.Queue()
     worker = threading.Thread(
         target=request_worker,
-        args=(method, url, params, headers, raw_body, result_queue),
+        args=(url, params, headers, result_queue),
         daemon=True,
     )
     worker.start()
@@ -186,12 +157,12 @@ def handle_send_request(tester_state, ui_refs):
 
 
 def render_tester_panel(details_frame, api, status_label, avail_w, on_history_updated=None, history_file=HISTORY_FILE):
-    """Build the interactive Request Configuration and Response cards for the selected API."""
+    """Build the GET Request Configuration and Response cards for the selected API."""
     defaults = build_default_request(api)
     api_name = str(api.get("api_name") or "Custom Request").strip() or "Custom Request"
     tester_state = {
         "api_name": api_name,
-        "method": defaults["method"],
+        "method": "GET",
         "param_rows": [],
         "header_rows": [],
         "request_id": 0,
@@ -210,23 +181,18 @@ def render_tester_panel(details_frame, api, status_label, avail_w, on_history_up
     req_hdr = ctk.CTkFrame(req_card, fg_color="transparent")
     req_hdr.pack(padx=14, pady=(10, 6), fill="x")
     ctk.CTkLabel(req_hdr, text="REQUEST CONFIGURATION", text_color=ACCENT_SECONDARY, font=font_ui(10, "bold")).pack(side="left")
-    ctk.CTkLabel(req_hdr, text="Edit URL, params, headers, or body before sending", text_color=TEXT_MUTED, font=font_ui(10)).pack(side="right")
+    ctk.CTkLabel(req_hdr, text="Edit URL, query parameters, or headers before sending", text_color=TEXT_MUTED, font=font_ui(10)).pack(side="right")
     ctk.CTkFrame(req_card, height=1, fg_color=BORDER_SUBTLE).pack(padx=12, pady=(0, 10), fill="x")
 
     url_row = ctk.CTkFrame(req_card, fg_color="transparent")
     url_row.pack(padx=12, pady=(0, 10), fill="x")
     url_row.grid_columnconfigure(1, weight=1)
 
-    method_menu = ctk.CTkOptionMenu(
-        url_row, values=list(SUPPORTED_METHODS), width=92, height=BTN_HEIGHT, corner_radius=RADIUS_CONTROL,
-        fg_color=METHOD_COLORS["GET"], button_color=METHOD_COLORS["GET"],
-        button_hover_color=ACCENT_HOVER, dropdown_fg_color=BG_SURFACE,
-        dropdown_hover_color=ACCENT_PRIMARY, text_color=TEXT_MAIN,
-        font=font_ui(11, "bold"),
-        command=partial(on_method_change, tester_state=tester_state, ui_refs=ui_refs),
+    method_badge = ctk.CTkLabel(
+        url_row, text="GET", width=64, height=BTN_HEIGHT, corner_radius=RADIUS_CONTROL,
+        fg_color=METHOD_COLORS["GET"], text_color=TEXT_MAIN, font=font_ui(11, "bold"),
     )
-    method_menu.set("GET")
-    method_menu.grid(row=0, column=0, padx=(0, 8))
+    method_badge.grid(row=0, column=0, padx=(0, 8))
 
     url_entry = ctk.CTkEntry(
         url_row, height=BTN_HEIGHT, corner_radius=RADIUS_CONTROL, fg_color=BG_SURFACE,
@@ -271,30 +237,7 @@ def render_tester_panel(details_frame, api, status_label, avail_w, on_history_up
     for h_key, h_val in defaults["headers"].items():
         add_key_value_row(headers_box, tester_state["header_rows"], h_key, h_val, "Header name", "Header value")
 
-    body_section = ctk.CTkFrame(req_card, fg_color="transparent")
-    body_header = ctk.CTkFrame(body_section, fg_color="transparent")
-    body_header.pack(pady=(2, 4), fill="x")
-    ctk.CTkLabel(body_header, text="JSON Request Body", text_color=TEXT_SECONDARY, font=font_ui(12, "bold")).pack(side="left")
-    ctk.CTkLabel(body_header, text="Optional JSON object or array (validated before sending)", text_color=TEXT_MUTED, font=font_ui(10)).pack(side="right")
-    body_box = ctk.CTkTextbox(
-        body_section, height=115, wrap="word", fg_color=BG_CODE, text_color=TEXT_MAIN,
-        border_width=1, border_color=BORDER_COLOR, corner_radius=RADIUS_CONTROL, font=font_mono(11),
-    )
-    body_box.pack(fill="x")
-
-    delete_note = ctk.CTkLabel(
-        req_card, text="DELETE requests are sent without a request body by default. Only run against safe test endpoints.",
-        text_color=TEXT_MUTED, wraplength=max(240, avail_w - 28), justify="left", anchor="w", font=font_ui(11),
-    )
-
-    ui_refs.update({
-        "method_menu": method_menu,
-        "url_entry": url_entry,
-        "send_btn": send_btn,
-        "body_section": body_section,
-        "body_box": body_box,
-        "delete_note": delete_note,
-    })
+    ui_refs.update({"method_badge": method_badge, "url_entry": url_entry, "send_btn": send_btn})
     build_response_card(details_frame, tester_state, ui_refs, avail_w)
 
     details_frame.tester_state = tester_state

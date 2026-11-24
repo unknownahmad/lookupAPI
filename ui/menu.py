@@ -185,7 +185,7 @@ def show_home_screen(content_frame, callbacks):
             (
                 f"{verified_count} Verified APIs · {test_runs} Test Runs",
                 "Test APIs",
-                "Send GET, POST, PUT, and DELETE requests with editable parameters, headers, JSON bodies, and request history.",
+                "Send live GET requests with editable URLs, query parameters, headers, and request history.",
                 "Launch Tester",
                 callbacks["test_apis"],
                 ACCENT_PRIMARY,

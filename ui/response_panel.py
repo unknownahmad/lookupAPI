@@ -15,7 +15,6 @@ from ui.theme import (
 
 DEFAULT_RESPONSE_PLACEHOLDER = "Click 'Send Request' to execute a request and inspect the formatted response here."
 SPECIFIC_FAILURE_REASONS = {
-    "Invalid JSON",
     "Invalid URL",
     "Invalid Header",
     "Invalid Timeout",

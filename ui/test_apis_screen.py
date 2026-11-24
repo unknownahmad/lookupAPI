@@ -211,7 +211,7 @@ def show_test_apis_screen(content_frame, on_back, history_file=HISTORY_FILE):
     title_col = ctk.CTkFrame(header, fg_color="transparent")
     title_col.pack(side="left", fill="x", expand=True)
     ctk.CTkLabel(title_col, text="Test APIs", font=font_ui(20, "bold"), text_color=TEXT_MAIN).pack(anchor="w")
-    ctk.CTkLabel(title_col, text="Verified unauthenticated public APIs · Send GET, POST, PUT, and DELETE requests", font=font_ui(12), text_color=TEXT_MUTED).pack(anchor="w")
+    ctk.CTkLabel(title_col, text="Verified unauthenticated public APIs · Send live GET requests", font=font_ui(12), text_color=TEXT_MUTED).pack(anchor="w")
 
     ctk.CTkButton(
         header, text="← Back to Home", command=on_back, width=118, height=BTN_HEIGHT,
