@@ -113,21 +113,29 @@ python -m unittest discover -s tests -v
 
 ## How to Use Main Features
 
-1. **Home:** View live counts of saved MySQL APIs, activity log entries, and verified catalogue APIs, or jump directly to any section.
-2. **Discover APIs:** Enter a search term (such as `GitHub` or `NASA`) to filter the APIs.guru directory, click an API to load its OpenAPI specification and endpoints, and click **Save API** to store it in MySQL.
-3. **My Saved APIs:** Select a saved record to view its documentation link, endpoint URL, category, and description, or click **Remove Saved API** to delete it from MySQL.
-4. **Test APIs:** Filter the 15 verified public APIs by category or `All`, select an API to prefill its verified `GET` URL, example query parameters, and headers, optionally edit any field, and click **Send Request** to inspect the formatted response.
-5. **Activity History:** Open **Activity History** from the sidebar to review timestamped save and removal events from `data/activity_log.txt`.
+1. **Home:** View live counts of saved MySQL APIs, activity log entries, and verified catalogue APIs, or jump directly to any section:
+<img width="1153" height="714" alt="Screenshot 2026-11-24 at 14 45 41" src="https://github.com/user-attachments/assets/38184f0f-1941-4e39-b53b-0ea58189d321" />
+
+2. **Discover APIs:** Enter a search term (such as `GitHub` or `NASA`) to filter the APIs.guru directory, click an API to load its OpenAPI specification and endpoints, and click **Save API** to store it in MySQL:
+<img width="1153" height="713" alt="Screenshot 2026-11-24 at 14 45 56" src="https://github.com/user-attachments/assets/f054b3e9-572f-429c-94eb-a042ac16ca3b" />
+
+3. **My Saved APIs:** Select a saved record to view its documentation link, endpoint URL, category, and description, or click **Remove Saved API** to delete it from MySQL:
+<img width="1150" height="715" alt="Screenshot 2026-11-24 at 14 46 19" src="https://github.com/user-attachments/assets/fe3d5ed1-4f68-4a39-afbf-84a3b301dbe3" />
+
+4. **Test APIs:** Filter the 15 verified public APIs by category or `All`, select an API to prefill its verified `GET` URL, example query parameters, and headers, optionally edit any field, and click **Send Request** to inspect the formatted response:
+<img width="1148" height="712" alt="Screenshot 2026-11-24 at 14 47 13" src="https://github.com/user-attachments/assets/26389222-0e76-4231-acb3-1c21903ab7a0" />
+<img width="1157" height="713" alt="Screenshot 2026-11-24 at 14 48 43" src="https://github.com/user-attachments/assets/81faff09-8586-4443-bff9-7f0a1d418573" />
+
+
+5. **Activity History:** Open **Activity History** from the sidebar to review timestamped save and removal events from `data/activity_log.txt`:
+<img width="1150" height="710" alt="Screenshot 2026-11-24 at 14 46 33" src="https://github.com/user-attachments/assets/d2cde97b-68e6-4972-9a9a-e04149721552" />
+
 
 ## Demo GIF / Video
 
-No demo video or GIF is currently committed to the repository. Before final submission, record a short 60–90 second walkthrough demonstrating:
+Watch the LOOKUPAPI demo:
 
-1. Launching `python main.py` and navigating from the Home dashboard.
-2. Searching an API in Discover APIs and saving it to MySQL.
-3. Viewing and removing a saved API in My Saved APIs and checking Activity History.
-4. Executing a live `GET` request in Test APIs and inspecting the formatted JSON response.
-5. Running `python -m unittest discover -s tests -v` in the terminal.
+https://github.com/user-attachments/assets/3c283c28-6a3c-4f20-99c2-334daa9a5a90
 
 ## Completed Functionality
 
