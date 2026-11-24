@@ -4,4 +4,3 @@ __pycache__/
 .DS_Store
 .env
 data/lookupapi.log
-data/test_request_history.json
