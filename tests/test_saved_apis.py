@@ -6,8 +6,13 @@ import logging
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pymysql
+
+from functions.activity import get_activity, save_activity
+from functions.database import connect_database
+from functions.list_of_APIs import add_API, collect_all_APIs, remove_API
 from functions.logger import LOGGER_NAME, configure_logger
 from functions.models import APIResource, SavedAPI
 from functions.saved_apis import (
@@ -19,7 +24,7 @@ from functions.saved_apis import (
 
 
 class TestSavedAPIsBackend(unittest.TestCase):
-    """Offline unit tests for SavedAPI integration in functions/saved_apis.py."""
+    """Offline unit tests for SavedAPI, activity file error handling, and database helpers."""
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -125,6 +130,56 @@ class TestSavedAPIsBackend(unittest.TestCase):
             self.assertFalse(remove_saved_API(999))
 
         mock_activity_fail.assert_not_called()
+
+    def test_activity_file_read_write_and_oserror_handling(self):
+        activity_path = os.path.join(self._tmpdir.name, "activity.txt")
+        self.assertEqual(get_activity(activity_path), [])
+        self.assertTrue(save_activity("GitHub API", "Saved", "N/A", file_path=activity_path))
+
+        lines = get_activity(activity_path)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("GitHub API | Saved | N/A", lines[0])
+
+        with patch("builtins.open", side_effect=OSError("disk read only")):
+            self.assertFalse(save_activity("GitHub API", "Saved", "N/A", file_path=activity_path))
+            self.assertEqual(get_activity(activity_path), [])
+
+    def test_database_connection_error_never_logs_credentials(self):
+        with patch("functions.database.load_dotenv"), \
+             patch("functions.database.pymysql.connect", side_effect=pymysql.OperationalError(1045, "Access denied for SECRET_DB_USER")), \
+             self.assertLogs(LOGGER_NAME, level="ERROR") as captured:
+            conn = connect_database()
+
+        self.assertIsNone(conn)
+        combined = "\n".join(captured.output)
+        self.assertIn("OperationalError", combined)
+        self.assertNotIn("SECRET_DB_USER", combined)
+
+    def test_list_of_apis_validation_and_db_error_handling_mocked(self):
+        self.assertFalse(add_API("invalid"))
+        self.assertFalse(add_API({"name": "Incomplete"}))
+        self.assertFalse(remove_API(True))
+        self.assertFalse(remove_API("not-an-int"))
+
+        mock_conn = MagicMock()
+        mock_conn.open = True
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        valid_payload = SavedAPI(name="Demo API", endpoint_url="https://api.example.test").to_dict()
+        mock_cursor.execute.side_effect = pymysql.IntegrityError(1062, "Duplicate entry")
+        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+            self.assertFalse(add_API(valid_payload))
+        mock_conn.rollback.assert_called_once()
+
+        mock_cursor.execute.side_effect = pymysql.OperationalError(2006, "Server gone")
+        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+            self.assertEqual(collect_all_APIs(), [])
+
+        mock_cursor.execute.side_effect = None
+        mock_cursor.rowcount = 0
+        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+            self.assertFalse(remove_API(999))
 
 
 if __name__ == "__main__":
