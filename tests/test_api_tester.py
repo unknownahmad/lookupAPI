@@ -2,6 +2,9 @@
 # FINAL CODE
 # ==========================================
 
+import logging
+import os
+import tempfile
 import tkinter as tk
 import unittest
 from unittest.mock import MagicMock, patch
@@ -18,6 +21,8 @@ from functions.api_tester import (
     validate_request_headers,
     validate_request_url,
 )
+from functions.logger import LOGGER_NAME, configure_logger
+from functions.models import CatalogAPI
 from ui.response_panel import (
     handle_clear_response,
     handle_copy_response,
@@ -41,6 +46,23 @@ def make_mock_response(status_code=200, reason="OK", content_type="application/j
 class TestApiTester(unittest.TestCase):
     """Offline unit tests for HTTP request building, validation, formatting, and error handling."""
 
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self._log_file = os.path.join(self._tmpdir.name, "test_api_tester.log")
+        self._reset_logger()
+        configure_logger(LOGGER_NAME, log_file=self._log_file)
+
+    def tearDown(self):
+        self._reset_logger()
+        self._tmpdir.cleanup()
+
+    def _reset_logger(self):
+        base_logger = logging.getLogger(LOGGER_NAME)
+        for handler in list(base_logger.handlers):
+            handler.flush()
+            handler.close()
+            base_logger.removeHandler(handler)
+
     def test_build_default_request_populates_url_params_and_headers(self):
         entry = {
             "base_url": "https://api.example.test/v1/",
@@ -57,6 +79,16 @@ class TestApiTester(unittest.TestCase):
         self.assertEqual(req["headers"]["X-Custom"], "Demo")
         self.assertNotIn("@", DEFAULT_USER_AGENT)
 
+        catalog_model = CatalogAPI(
+            name="Model API",
+            endpoint_url="https://api.example.test/v2",
+            sample_endpoint="/items",
+            example_query_parameters={"limit": "3"},
+        )
+        model_req = build_default_request(catalog_model)
+        self.assertEqual(model_req["url"], "https://api.example.test/v2/items")
+        self.assertEqual(model_req["params"], {"limit": "3"})
+
     def test_validate_request_url_accepts_valid_and_rejects_invalid(self):
         self.assertEqual(validate_request_url("https://api.example.test/v1")[0], True)
         self.assertEqual(validate_request_url("http://127.0.0.1:8000/items")[0], True)
@@ -70,20 +102,28 @@ class TestApiTester(unittest.TestCase):
             "https://:8080/missing-host",
             "https://api.example.test:notaport/v1",
             "https://api.example.test:70000/v1",
+            "https://api.example.test:0/v1",
         ):
             valid, message = validate_request_url(bad_url)
             self.assertFalse(valid, f"Expected invalid URL: {bad_url!r}")
             self.assertTrue(bool(message))
 
     def test_rejects_invalid_headers_and_timeouts_without_network_calls(self):
-        ok_hdr, clean_hdr, err_hdr = validate_request_headers({"Accept": "application/json", " ": "ignored"})
+        ok_hdr, clean_hdr, err_hdr = validate_request_headers(
+            {"Accept": "application/json", "X-Custom-1": "ok", " ": "ignored"}
+        )
         self.assertTrue(ok_hdr)
-        self.assertEqual(clean_hdr, {"Accept": "application/json"})
+        self.assertEqual(clean_hdr, {"Accept": "application/json", "X-Custom-1": "ok"})
         self.assertEqual(err_hdr, "")
 
         bad_hdr_ok, _, bad_hdr_err = validate_request_headers({"X-Test": "value\r\nInjected: bad"})
         self.assertFalse(bad_hdr_ok)
         self.assertIn("newline", bad_hdr_err.lower())
+
+        for bad_name in ("Bad Header", "X-Bad:Name", "X/Invalid"):
+            ok_name, _, err_name = validate_request_headers({bad_name: "value"})
+            self.assertFalse(ok_name, f"Expected invalid header name: {bad_name!r}")
+            self.assertIn("header name", err_name.lower())
 
         self.assertEqual(build_default_request(None)["url"], "")
 
@@ -166,6 +206,21 @@ class TestApiTester(unittest.TestCase):
             self.assertFalse(res_bad_json["ok"])
             self.assertEqual(res_bad_json["reason"], "Invalid JSON")
             mock_req.assert_not_called()
+
+    def test_send_api_request_never_logs_sensitive_headers_or_params(self):
+        with patch("functions.api_tester.requests.request", return_value=make_mock_response(200, "OK", text="{}")), \
+             self.assertLogs(LOGGER_NAME, level="INFO") as captured:
+            res = send_api_request(
+                "GET",
+                "https://api.example.test/private?api_key=SECRET_KEY_123",
+                headers={"Authorization": "Bearer TOP_SECRET_BEARER"},
+            )
+
+        self.assertTrue(res["ok"])
+        combined = "\n".join(captured.output)
+        self.assertNotIn("SECRET_KEY_123", combined)
+        self.assertNotIn("TOP_SECRET_BEARER", combined)
+        self.assertNotIn("api.example.test", combined)
 
     def test_send_api_request_network_and_http_errors_mocked(self):
         with patch("functions.api_tester.requests.request", side_effect=requests.exceptions.Timeout("timeout")):
