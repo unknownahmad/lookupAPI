@@ -8,7 +8,6 @@ import threading
 import customtkinter as ctk
 
 from functions.api_tester import build_default_request, send_api_request
-from functions.request_history import HISTORY_FILE, save_request_history
 from ui.response_panel import build_response_card, update_response_card
 from ui.theme import (
     ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD,
@@ -85,7 +84,7 @@ def apply_test_response(result, ui_refs, tester_state=None):
     update_response_card(result, tester_state if tester_state is not None else {}, ui_refs)
 
 
-def poll_test_response(result_queue, req_id, request_url, tester_state, ui_refs):
+def poll_test_response(result_queue, req_id, tester_state, ui_refs):
     """Poll the worker queue on the main Tkinter thread without freezing the GUI."""
     if not ui_refs["response_box"].winfo_exists():
         return
@@ -97,25 +96,12 @@ def poll_test_response(result_queue, req_id, request_url, tester_state, ui_refs)
     except queue.Empty:
         ui_refs["response_box"].after(
             40,
-            partial(poll_test_response, result_queue, req_id, request_url, tester_state, ui_refs),
+            partial(poll_test_response, result_queue, req_id, tester_state, ui_refs),
         )
         return
 
     tester_state["in_flight"] = False
     tester_state["last_result"] = result
-
-    if tester_state.get("record_history", True):
-        save_request_history(
-            tester_state.get("api_name", "Custom Request"),
-            "GET",
-            request_url,
-            result,
-            file_path=tester_state.get("history_file", HISTORY_FILE),
-        )
-        on_updated = tester_state.get("on_history_updated")
-        if callable(on_updated):
-            on_updated()
-
     apply_test_response(result, ui_refs, tester_state)
 
 
@@ -153,10 +139,10 @@ def handle_send_request(tester_state, ui_refs):
         daemon=True,
     )
     worker.start()
-    resp_box.after(40, partial(poll_test_response, result_queue, req_id, url, tester_state, ui_refs))
+    resp_box.after(40, partial(poll_test_response, result_queue, req_id, tester_state, ui_refs))
 
 
-def render_tester_panel(details_frame, api, status_label, avail_w, on_history_updated=None, history_file=HISTORY_FILE):
+def render_tester_panel(details_frame, api, status_label, avail_w):
     """Build the GET Request Configuration and Response cards for the selected API."""
     defaults = build_default_request(api)
     api_name = str(api.get("api_name") or "Custom Request").strip() or "Custom Request"
@@ -169,9 +155,6 @@ def render_tester_panel(details_frame, api, status_label, avail_w, on_history_up
         "in_flight": False,
         "last_result": None,
         "last_body": "",
-        "record_history": True,
-        "history_file": history_file,
-        "on_history_updated": on_history_updated,
     }
     ui_refs = {"status_label": status_label}
 

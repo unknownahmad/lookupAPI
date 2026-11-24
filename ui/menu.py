@@ -12,7 +12,6 @@ from functions.saved_apis import get_saved_APIs, remove_saved_API
 # ==========================================
 # FINAL CODE
 # ==========================================
-from functions.request_history import load_request_history
 from functions.test_catalogue import load_verified_free_apis
 from ui.theme import (
     ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD, BG_CODE,
@@ -179,13 +178,12 @@ def show_home_screen(content_frame, callbacks):
     # ==========================================
     if "test_apis" in callbacks:
         verified_count = len(load_verified_free_apis())
-        test_runs = len(load_request_history())
         cards_data.insert(
             1,
             (
-                f"{verified_count} Verified APIs · {test_runs} Test Runs",
+                f"{verified_count} Verified APIs",
                 "Test APIs",
-                "Send live GET requests with editable URLs, query parameters, headers, and request history.",
+                "Send live GET requests with editable URLs, query parameters, and headers.",
                 "Launch Tester",
                 callbacks["test_apis"],
                 ACCENT_PRIMARY,

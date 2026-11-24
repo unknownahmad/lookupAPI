@@ -5,7 +5,6 @@
 from functools import partial
 import customtkinter as ctk
 
-from functions.request_history import HISTORY_FILE, load_request_history
 from functions.test_catalogue import (
     extract_attribution_info,
     extract_rate_limit_info,
@@ -15,7 +14,6 @@ from functions.test_catalogue import (
 )
 from ui.api_tester_panel import render_tester_panel
 from ui.menu import add_text_card, wrap_long_text
-from ui.request_history_panel import render_request_history_panel
 from ui.theme import (
     ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD, BG_CODE, BG_MAIN, BG_SURFACE,
     BG_SURFACE_HOVER, BORDER_COLOR, BORDER_SUBTLE, BTN_HEIGHT, BTN_HEIGHT_SM,
@@ -37,25 +35,7 @@ def add_test_apis_nav_button(sidebar, nav_buttons, command):
     return btn
 
 
-def refresh_history_button_label(history_btn, history_file=HISTORY_FILE):
-    """Update the Request History button label with the current saved count."""
-    if history_btn is not None and history_btn.winfo_exists():
-        count = len(load_request_history(file_path=history_file))
-        history_btn.configure(text=f"Request History ({count})")
-
-
-def open_request_history(widgets, history_file=HISTORY_FILE):
-    """Render the Test Request History panel inside the right-hand details container."""
-    prev_btn = widgets.get("selected_api_btn")
-    if prev_btn is not None and prev_btn.winfo_exists():
-        prev_btn.configure(fg_color=BG_SURFACE, border_width=0)
-        widgets["selected_api_btn"] = None
-
-    render_request_history_panel(widgets["details_frame"], widgets["status_label"], history_file=history_file)
-    refresh_history_button_label(widgets.get("history_btn"), history_file=history_file)
-
-
-def render_test_api_details(details_frame, api, status_label, on_history_updated=None, history_file=HISTORY_FILE, widgets=None, clicked_btn=None):
+def render_test_api_details(details_frame, api, status_label, widgets=None, clicked_btn=None):
     """Display full catalogue metadata, interactive tester, and usage terms for the selected API."""
     if widgets is not None and clicked_btn is not None:
         prev_btn = widgets.get("selected_api_btn")
@@ -105,11 +85,7 @@ def render_test_api_details(details_frame, api, status_label, on_history_updated
     add_text_card(details_frame, "DOCUMENTATION", doc_url, ACCENT_SECONDARY, avail_w, wrap_mode="char", max_height=54, mono=True)
 
     # 3. Request Configuration & 4. Response Output
-    render_tester_panel(
-        details_frame, api, status_label, avail_w,
-        on_history_updated=on_history_updated,
-        history_file=history_file,
-    )
+    render_tester_panel(details_frame, api, status_label, avail_w)
 
     # 5. Additional API Information (Base URL, Example Endpoint, Attribution & Rate Limits)
     extra_card = ctk.CTkFrame(details_frame, fg_color=BG_CARD, corner_radius=RADIUS_CONTROL, border_width=1, border_color=BORDER_COLOR)
@@ -173,9 +149,6 @@ def populate_category_list(category, state, widgets):
         ctk.CTkLabel(list_frame, text="No verified APIs found in this category.", text_color=TEXT_MUTED, font=font_ui(12)).pack(padx=10, pady=14, anchor="w")
         return
 
-    on_history_updated = widgets.get("on_history_updated")
-    history_file = state.get("history_file", HISTORY_FILE)
-
     for cat_name in categories_to_show:
         ctk.CTkLabel(list_frame, text=cat_name.upper(), text_color=TEXT_MUTED, font=font_ui(10, "bold")).pack(padx=8, pady=(10, 3), anchor="w")
         for api in grouped[cat_name]:
@@ -193,17 +166,17 @@ def populate_category_list(category, state, widgets):
                 command=partial(
                     render_test_api_details,
                     widgets["details_frame"], api, widgets["status_label"],
-                    on_history_updated, history_file, widgets, btn,
+                    widgets, btn,
                 )
             )
             btn.pack(padx=4, pady=3, fill="x")
 
 
-def show_test_apis_screen(content_frame, on_back, history_file=HISTORY_FILE):
-    """Build and display the Test APIs verified free catalogue, API tester, and request history screen."""
+def show_test_apis_screen(content_frame, on_back):
+    """Build and display the Test APIs verified free catalogue and GET API tester screen."""
     apis = load_verified_free_apis()
     grouped = group_apis_by_category(apis)
-    state = {"apis": apis, "grouped": grouped, "history_file": history_file}
+    state = {"apis": apis, "grouped": grouped}
 
     header = ctk.CTkFrame(content_frame, fg_color="transparent")
     header.pack(padx=PAD_PAGE_X, pady=(18, 8), fill="x")
@@ -218,14 +191,6 @@ def show_test_apis_screen(content_frame, on_back, history_file=HISTORY_FILE):
         corner_radius=RADIUS_CONTROL, fg_color=BG_CARD, hover_color=BG_SURFACE,
         border_width=1, border_color=BORDER_COLOR, text_color=TEXT_MUTED, font=font_ui(12),
     ).pack(side="right", anchor="n")
-
-    history_count = len(load_request_history(file_path=history_file))
-    history_btn = ctk.CTkButton(
-        header, text=f"Request History ({history_count})", width=150, height=BTN_HEIGHT,
-        corner_radius=RADIUS_CONTROL, fg_color=BG_SURFACE, hover_color=ACCENT_PRIMARY,
-        border_width=1, border_color=BORDER_COLOR, text_color=TEXT_MAIN, font=font_ui(12, "bold"),
-    )
-    history_btn.pack(side="right", padx=(0, 8), anchor="n")
 
     cat_bar = ctk.CTkFrame(content_frame, fg_color=BG_CARD, corner_radius=RADIUS_PANEL, border_width=1, border_color=BORDER_COLOR)
     cat_bar.pack(padx=PAD_PAGE_X, pady=(0, 10), fill="x")
@@ -251,14 +216,11 @@ def show_test_apis_screen(content_frame, on_back, history_file=HISTORY_FILE):
     status_label = ctk.CTkLabel(right_panel, text="", font=font_ui(12), text_color=TEXT_MUTED)
     status_label.pack(padx=14, pady=(0, 12), anchor="w")
 
-    on_history_updated = partial(refresh_history_button_label, history_btn, history_file)
     widgets = {
         "list_frame": list_frame, "count_label": count_label,
         "details_frame": details_frame, "status_label": status_label,
-        "category_buttons": {}, "history_btn": history_btn,
-        "on_history_updated": on_history_updated, "selected_api_btn": None,
+        "category_buttons": {}, "selected_api_btn": None,
     }
-    history_btn.configure(command=partial(open_request_history, widgets, history_file))
 
     if len(apis) == 0:
         ctk.CTkLabel(details_frame, text="Could not load data/verified_free_apis.json.", text_color=COLOR_ERROR, font=font_ui(13)).pack(padx=14, pady=18, anchor="w")
@@ -267,7 +229,7 @@ def show_test_apis_screen(content_frame, on_back, history_file=HISTORY_FILE):
 
     ctk.CTkLabel(
         details_frame,
-        text="Select any verified no-auth API from the catalogue on the left to inspect its details and send HTTP requests, or open Request History above to review previous runs.",
+        text="Select any verified no-auth API from the catalogue on the left to inspect its details and send live GET requests.",
         text_color=TEXT_MUTED, wraplength=440, justify="left", font=font_ui(12),
     ).pack(padx=14, pady=18, anchor="w")
     status_label.configure(text=f"Loaded {len(apis)} verified free APIs across {len(grouped)} categories.", text_color=TEXT_MUTED)
