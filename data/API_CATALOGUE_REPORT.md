@@ -10,7 +10,7 @@
 - **Strict audit of Phase 1 `WORKING_NO_AUTH` results:** 14 of 17 were rejected (health checks, timestamps, status pages, staging hosts, or commercial APIs whose real endpoints require keys); **3 passed** (`APIs.guru`, `Forem API V1 (DEV.to)`, `CIRCL Hashlookup API`).
 - **Phase 2 (Additional curated public API research):** 17 additional well-documented open/government/community APIs tested live via unauthenticated `GET` -> 1 rejected (`REST Countries API v3.1` returned a live HTTP 200 deprecation error requiring migration to key-gated v5), **16 passed**.
 - **Total unique APIs tested across both phases:** 132 (115 in Phase 1 + 17 new candidates in Phase 2, plus re-verification of the 3 Phase 1 winners on rich data endpoints).
-- **Final approved catalogue:** **15 APIs** across all **8 target categories** (15 distinct providers), stored in `data/verified_free_apis.json` and `data/verified_free_apis.csv`. Four additional passing candidates (`Open-Meteo Geocoding API`, `Spaceflight News API v4`, `Hacker News API`, `Wikipedia REST API`) were verified HTTP 200 and documented below as optional backups to keep the primary catalogue within the 10–15 API target.
+- **Final approved catalogue:** **15 APIs** across all **8 target categories** (15 distinct providers), stored in `data/verified_free_apis.json`. Four additional passing candidates (`Open-Meteo Geocoding API`, `Spaceflight News API v4`, `Hacker News API`, `Wikipedia REST API`) were verified HTTP 200 and documented below as optional backups to keep the primary catalogue within the 10–15 API target.
 
 ## 2. Approved APIs (15 Verified Candidates)
 
