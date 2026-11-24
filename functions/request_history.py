@@ -8,6 +8,9 @@ import os
 import tempfile
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from functions.decorators import log_execution
+from functions.logger import get_logger
+
 HISTORY_FILE = "data/test_request_history.json"
 MASK_VALUE = "REDACTED"
 MAX_HISTORY_ENTRIES = 200
@@ -77,37 +80,43 @@ def build_history_entry(api_name, method, url, result):
     }
 
 
-def load_request_history(file_path=HISTORY_FILE):
-    """Load saved API tester request history safely, tolerating missing, empty, or malformed files."""
+def iter_request_history(file_path=HISTORY_FILE):
+    """Yield valid request history records one by one from the JSON history file."""
+    logger = get_logger("lookupapi.request_history")
     if not os.path.exists(file_path):
-        return []
+        return
 
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             raw_content = file.read().strip()
         if not raw_content:
-            return []
+            return
         data = json.loads(raw_content)
     except (OSError, ValueError) as error:
-        print("Warning: Could not read request history file:", error)
-        return []
+        logger.warning("Could not read request history file (%s).", type(error).__name__)
+        return
 
     if not isinstance(data, list):
-        print("Warning: Request history file format is invalid (expected a JSON list).")
-        return []
+        logger.warning("Request history file format is invalid (expected a JSON list).")
+        return
 
-    valid_entries = []
     for entry in data:
         if not isinstance(entry, dict):
             continue
         if not str(entry.get("url") or "").strip() and not str(entry.get("api_name") or "").strip():
             continue
-        valid_entries.append(entry)
-    return valid_entries
+        yield entry
 
 
+def load_request_history(file_path=HISTORY_FILE):
+    """Load saved API tester request history safely as a list."""
+    return list(iter_request_history(file_path=file_path))
+
+
+@log_execution
 def save_request_history(api_name, method, url, result, file_path=HISTORY_FILE, max_entries=MAX_HISTORY_ENTRIES):
     """Append a sanitized request summary entry atomically to the JSON request history file."""
+    logger = get_logger("lookupapi.request_history")
     entry = build_history_entry(api_name, method, url, result)
     history = load_request_history(file_path=file_path)
     history.append(entry)
@@ -116,10 +125,9 @@ def save_request_history(api_name, method, url, result, file_path=HISTORY_FILE, 
         history = history[-max_entries:]
 
     parent_dir = os.path.dirname(file_path) or "."
-    os.makedirs(parent_dir, exist_ok=True)
-
     tmp_path = None
     try:
+        os.makedirs(parent_dir, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=parent_dir, prefix=".history_", suffix=".tmp", delete=False
         ) as tmp_file:
@@ -127,7 +135,7 @@ def save_request_history(api_name, method, url, result, file_path=HISTORY_FILE, 
             json.dump(history, tmp_file, indent=2, ensure_ascii=False)
         os.replace(tmp_path, file_path)
     except OSError as error:
-        print("Warning: Could not save request history:", error)
+        logger.error("Could not save request history (%s).", type(error).__name__)
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
