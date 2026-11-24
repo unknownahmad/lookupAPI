@@ -7,7 +7,7 @@ import unittest
 
 from functions.api_tester import build_default_request
 from functions.models import APIResource, CatalogAPI, SavedAPI
-from functions.test_catalogue import CATALOGUE_FILE, is_valid_catalogue_entry
+from functions.catalogue import CATALOGUE_FILE, is_valid_catalogue_entry
 
 
 class TestAPIModels(unittest.TestCase):

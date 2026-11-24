@@ -11,7 +11,7 @@ import unittest
 
 from functions.logger import LOGGER_NAME, configure_logger
 from functions.models import APIResource, CatalogAPI
-from functions.test_catalogue import (
+from functions.catalogue import (
     CATALOGUE_FILE,
     extract_attribution_info,
     extract_rate_limit_info,

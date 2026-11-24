@@ -1,7 +1,3 @@
-# ==========================================
-# FINAL CODE
-# ==========================================
-
 import logging
 import os
 import tempfile
@@ -10,17 +6,19 @@ from unittest.mock import MagicMock, patch
 
 import pymysql
 
-from functions.activity import get_activity, save_activity
-from functions.database import connect_database
-from functions.list_of_APIs import add_API, collect_all_APIs, remove_API
-from functions.logger import LOGGER_NAME, configure_logger
-from functions.models import APIResource, SavedAPI
-from functions.saved_apis import (
+from functions.database import (
+    add_API,
+    collect_all_APIs,
+    connect_database,
     get_saved_APIs,
     get_saved_api_models,
+    remove_API,
     remove_saved_API,
     save_API,
 )
+from functions.logger import LOGGER_NAME, configure_logger
+from functions.models import APIResource, SavedAPI
+from functions.utils import get_activity, save_activity
 
 
 class TestSavedAPIsBackend(unittest.TestCase):
@@ -50,8 +48,8 @@ class TestSavedAPIsBackend(unittest.TestCase):
             "documentation_url": "https://docs.github.com/rest",
             "description": "GitHub REST API",
         }
-        with patch("functions.saved_apis.add_API", return_value=True) as mock_add, \
-             patch("functions.saved_apis.save_activity") as mock_activity:
+        with patch("functions.database.add_API", return_value=True) as mock_add, \
+             patch("functions.database.save_activity") as mock_activity:
             saved = save_API(discover_entry)
 
         self.assertTrue(saved)
@@ -72,16 +70,16 @@ class TestSavedAPIsBackend(unittest.TestCase):
             description="Forecast API",
             documentation_url="https://open-meteo.com/en/docs",
         )
-        with patch("functions.saved_apis.add_API", return_value=True) as mock_add, \
-             patch("functions.saved_apis.save_activity") as mock_activity:
+        with patch("functions.database.add_API", return_value=True) as mock_add, \
+             patch("functions.database.save_activity") as mock_activity:
             self.assertTrue(save_API(model))
 
         self.assertEqual(mock_add.call_args[0][0]["endpoint_url"], "https://api.open-meteo.com/v1")
         mock_activity.assert_called_once_with("Open-Meteo", "Saved", "N/A")
 
     def test_save_api_rejects_invalid_and_nameless_inputs(self):
-        with patch("functions.saved_apis.add_API") as mock_add, \
-             patch("functions.saved_apis.save_activity") as mock_activity:
+        with patch("functions.database.add_API") as mock_add, \
+             patch("functions.database.save_activity") as mock_activity:
             self.assertFalse(save_API("not-a-dict"))
             self.assertFalse(save_API(None))
             self.assertFalse(save_API({"name": "   ", "base_url": "https://api.example.test"}))
@@ -102,7 +100,7 @@ class TestSavedAPIsBackend(unittest.TestCase):
                 "requires_auth": 0,
             }
         ]
-        with patch("functions.saved_apis.collect_all_APIs", return_value=mysql_rows):
+        with patch("functions.database.collect_all_APIs", return_value=mysql_rows):
             models = get_saved_api_models()
             dicts = get_saved_APIs()
 
@@ -116,17 +114,17 @@ class TestSavedAPIsBackend(unittest.TestCase):
 
     def test_remove_saved_api_logs_activity_only_on_success(self):
         mysql_rows = [{"api_id": 21, "name": "ODWeather", "endpoint_url": "https://api.oceandrivers.com/"}]
-        with patch("functions.saved_apis.collect_all_APIs", return_value=mysql_rows), \
-             patch("functions.saved_apis.remove_API", return_value=True) as mock_remove, \
-             patch("functions.saved_apis.save_activity") as mock_activity:
+        with patch("functions.database.collect_all_APIs", return_value=mysql_rows), \
+             patch("functions.database.remove_API", return_value=True) as mock_remove, \
+             patch("functions.database.save_activity") as mock_activity:
             self.assertTrue(remove_saved_API(21))
 
         mock_remove.assert_called_once_with(21)
         mock_activity.assert_called_once_with("ODWeather", "Removed", "N/A")
 
-        with patch("functions.saved_apis.collect_all_APIs", return_value=mysql_rows), \
-             patch("functions.saved_apis.remove_API", return_value=False), \
-             patch("functions.saved_apis.save_activity") as mock_activity_fail:
+        with patch("functions.database.collect_all_APIs", return_value=mysql_rows), \
+             patch("functions.database.remove_API", return_value=False), \
+             patch("functions.database.save_activity") as mock_activity_fail:
             self.assertFalse(remove_saved_API(999))
 
         mock_activity_fail.assert_not_called()
@@ -168,17 +166,17 @@ class TestSavedAPIsBackend(unittest.TestCase):
 
         valid_payload = SavedAPI(name="Demo API", endpoint_url="https://api.example.test").to_dict()
         mock_cursor.execute.side_effect = pymysql.IntegrityError(1062, "Duplicate entry")
-        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+        with patch("functions.database.connect_database", return_value=mock_conn):
             self.assertFalse(add_API(valid_payload))
         mock_conn.rollback.assert_called_once()
 
         mock_cursor.execute.side_effect = pymysql.OperationalError(2006, "Server gone")
-        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+        with patch("functions.database.connect_database", return_value=mock_conn):
             self.assertEqual(collect_all_APIs(), [])
 
         mock_cursor.execute.side_effect = None
         mock_cursor.rowcount = 0
-        with patch("functions.list_of_APIs.connect_database", return_value=mock_conn):
+        with patch("functions.database.connect_database", return_value=mock_conn):
             self.assertFalse(remove_API(999))
 
 

@@ -18,11 +18,10 @@ from functions.api_tester import (
     format_response_body,
     send_api_request,
     send_get_request,
-    validate_request_headers,
-    validate_request_url,
 )
 from functions.logger import LOGGER_NAME, configure_logger
 from functions.models import CatalogAPI
+from functions.validators import validate_request_headers, validate_request_url
 from ui.response_panel import (
     handle_clear_response,
     handle_copy_response,
