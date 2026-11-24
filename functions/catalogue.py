@@ -1,7 +1,3 @@
-# ==========================================
-# FINAL CODE
-# ==========================================
-
 import json
 import os
 import re
@@ -188,25 +184,23 @@ def extract_rate_limit_info(api):
     lower = evidence.lower()
     notes = []
 
-    match_patterns = [
+    for pattern in (
         r"up to [\d,]+\s+calls/day",
         r"\d+\s+requests/second",
         r"~?\d+\s+req/\d+s",
-    ]
-    for pattern in match_patterns:
+    ):
         match = re.search(pattern, evidence, flags=re.IGNORECASE)
         if match:
             notes.append(match.group(0))
 
-    if "non-commercial" in lower:
-        notes.append("Non-commercial / academic use")
-    if "caching" in lower:
-        notes.append("Fair-use local caching policy")
-    if "user-agent" in lower:
-        notes.append("Descriptive User-Agent header requested/required")
-    if "best-effort" in lower:
-        notes.append("Best-effort public service")
-    if "public pool" in lower:
-        notes.append("Free public pool rate limits apply")
+    for keyword, note in (
+        ("non-commercial", "Non-commercial / academic use"),
+        ("caching", "Fair-use local caching policy"),
+        ("user-agent", "Descriptive User-Agent header requested/required"),
+        ("best-effort", "Best-effort public service"),
+        ("public pool", "Free public pool rate limits apply"),
+    ):
+        if keyword in lower:
+            notes.append(note)
 
     return "; ".join(notes) if notes else "No specific rate limit documented (use fair-use rates)"

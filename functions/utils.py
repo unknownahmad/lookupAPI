@@ -1,22 +1,32 @@
-# ==========================================
-# MIDTERM CODE
-# ==========================================
-
-import os
 from datetime import datetime
+import os
 
-# ==========================================
-# FINAL CODE
-# ==========================================
 from functions.logger import get_logger
 
-# ==========================================
-# MIDTERM CODE
-# ==========================================
 ACTIVITY_FILE = "data/activity_log.txt"
 
 
-def save_activity(api_name, status, status_code, file_path=ACTIVITY_FILE):
+def parse_optional_int(value):
+    """Convert value to int when valid, otherwise return None."""
+    if value is None or isinstance(value, bool) or value == "":
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_optional_float(value):
+    """Convert value to float when valid, otherwise return None."""
+    if value is None or isinstance(value, bool) or value == "":
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def save_activity(api_name, status, status_code="N/A", file_path=ACTIVITY_FILE):
     """Append a timestamped activity entry to the activity log file."""
     logger = get_logger("lookupapi.activity")
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

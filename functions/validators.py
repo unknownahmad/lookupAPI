@@ -1,13 +1,36 @@
-# ==========================================
-# FINAL CODE
-# ==========================================
-
 import re
 from urllib.parse import urlparse
 
-from functions.models import APIResource
+URL_REGEX = re.compile(
+    r"^https?://"
+    r"(?:localhost|(?:\d{1,3}\.){3}\d{1,3}|"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)"
+    r"(?::\d{1,5})?"
+    r"(?:[/?#][^\s]*)?$",
+    re.IGNORECASE,
+)
 
 HEADER_NAME_REGEX = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+
+
+def is_valid_url(url):
+    """Validate an http(s) URL using URL_REGEX and urllib.parse port range checks."""
+    cleaned = str(url or "").strip()
+    if not cleaned or not URL_REGEX.match(cleaned):
+        return False
+
+    try:
+        parsed = urlparse(cleaned)
+        port = parsed.port
+    except ValueError:
+        return False
+
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False
+    if port is not None and not (1 <= port <= 65535):
+        return False
+    return True
 
 
 def validate_request_url(url):
@@ -28,7 +51,7 @@ def validate_request_url(url):
         return False, "Please enter a valid URL starting with http:// or https:// and a host name."
     if port is not None and not (1 <= port <= 65535):
         return False, "Request URL port must be between 1 and 65535."
-    if not APIResource.validate_url(cleaned):
+    if not is_valid_url(cleaned):
         return False, "Please enter a valid http:// or https:// URL with a valid host name."
 
     return True, cleaned

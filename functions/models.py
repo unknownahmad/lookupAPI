@@ -1,39 +1,5 @@
-# ==========================================
-# FINAL CODE
-# ==========================================
-
-import re
-from urllib.parse import urlparse
-
-URL_REGEX = re.compile(
-    r"^https?://"
-    r"(?:localhost|(?:\d{1,3}\.){3}\d{1,3}|"
-    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
-    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)"
-    r"(?::\d{1,5})?"
-    r"(?:[/?#][^\s]*)?$",
-    re.IGNORECASE,
-)
-
-
-def _parse_optional_int(value):
-    """Convert value to int when valid, otherwise return None."""
-    if value is None or isinstance(value, bool) or value == "":
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_optional_float(value):
-    """Convert value to float when valid, otherwise return None."""
-    if value is None or isinstance(value, bool) or value == "":
-        return None
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return None
+from functions.utils import parse_optional_float, parse_optional_int
+from functions.validators import URL_REGEX, is_valid_url
 
 
 class APIResource:
@@ -49,22 +15,8 @@ class APIResource:
 
     @staticmethod
     def validate_url(url):
-        """Validate an http(s) URL using a compiled regex and urllib.parse port checks."""
-        cleaned = str(url or "").strip()
-        if not cleaned or not URL_REGEX.match(cleaned):
-            return False
-
-        try:
-            parsed = urlparse(cleaned)
-            port = parsed.port
-        except ValueError:
-            return False
-
-        if parsed.scheme not in ("http", "https") or not parsed.hostname:
-            return False
-        if port is not None and not (1 <= port <= 65535):
-            return False
-        return True
+        """Validate an http(s) URL using regex and urllib.parse port range checks."""
+        return is_valid_url(url)
 
     def has_valid_url(self):
         """Return True when endpoint_url is a valid http(s) URL."""
@@ -115,16 +67,12 @@ class CatalogAPI(APIResource):
             endpoint_url=endpoint_url,
             description=description,
         )
-        if https is None:
-            self.https = self.endpoint_url.lower().startswith("https://")
-        else:
-            self.https = bool(https)
-
+        self.https = self.endpoint_url.lower().startswith("https://") if https is None else bool(https)
         self.auth = str(auth if auth is not None else "NONE").strip()
         self.cors = str(cors or "unknown").strip() or "unknown"
         self.sample_endpoint = str(sample_endpoint or "").strip()
         self.docs_url = str(docs_url or "").strip()
-        self.status_code = _parse_optional_int(status_code)
+        self.status_code = parse_optional_int(status_code)
         self.provider = str(provider or "").strip()
         self.example_query_parameters = {}
         if isinstance(example_query_parameters, dict):
@@ -133,7 +81,7 @@ class CatalogAPI(APIResource):
                 if clean_key:
                     self.example_query_parameters[clean_key] = str(value)
         self.free_access_evidence = str(free_access_evidence or "").strip()
-        self.response_time_seconds = _parse_optional_float(response_time_seconds)
+        self.response_time_seconds = parse_optional_float(response_time_seconds)
         self.date_tested = str(date_tested or "").strip()
         self.example_json_response = example_json_response
 
@@ -203,7 +151,7 @@ class CatalogAPI(APIResource):
 
 
 class SavedAPI(APIResource):
-    """Saved API model compatible with MySQL apis table rows and saved_apis dictionaries."""
+    """Saved API model compatible with MySQL apis table rows and UI dictionaries."""
 
     def __init__(
         self,
@@ -223,7 +171,7 @@ class SavedAPI(APIResource):
             endpoint_url=endpoint_url,
             description=description or "No description available",
         )
-        self.api_id = _parse_optional_int(api_id)
+        self.api_id = parse_optional_int(api_id)
         cleaned_saved_at = str(saved_at).strip() if saved_at is not None else ""
         self.saved_at = cleaned_saved_at or None
         self.documentation_url = str(documentation_url or "").strip()

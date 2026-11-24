@@ -1,7 +1,3 @@
-# ==========================================
-# FINAL CODE
-# ==========================================
-
 import json
 import time
 
@@ -10,10 +6,7 @@ import requests
 from functions.decorators import log_execution
 from functions.logger import get_logger
 from functions.models import CatalogAPI
-from functions.validators import (
-    validate_request_headers,
-    validate_request_url,
-)
+from functions.validators import validate_request_headers, validate_request_url
 
 DEFAULT_USER_AGENT = "LOOKUPAPI/1.0 (Python Desktop API Explorer; University Course Project)"
 DEFAULT_TIMEOUT = 15

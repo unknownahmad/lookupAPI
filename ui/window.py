@@ -5,9 +5,8 @@
 from functools import partial
 import customtkinter as ctk
 
-from functions.api_details import get_api_details
-from functions.api_directory import get_api_directory, search_apis
-from functions.saved_apis import get_saved_APIs, save_API
+from functions.api_directory import get_api_details, get_api_directory, search_apis
+from functions.database import get_saved_APIs, save_API
 from ui.menu import (
     ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD, BG_MAIN,
     BG_SURFACE, BORDER_COLOR, COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING,

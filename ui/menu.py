@@ -6,13 +6,9 @@ from functools import partial
 from tkinter import messagebox
 import customtkinter as ctk
 
-from functions.activity import get_activity
-from functions.saved_apis import get_saved_APIs, remove_saved_API
-
-# ==========================================
-# FINAL CODE
-# ==========================================
-from functions.test_catalogue import load_verified_free_apis
+from functions.catalogue import load_verified_free_apis
+from functions.database import get_saved_APIs, remove_saved_API
+from functions.utils import get_activity
 from ui.theme import (
     ACCENT_HOVER, ACCENT_PRIMARY, ACCENT_SECONDARY, BG_CARD, BG_CODE,
     BG_MAIN, BG_SIDEBAR, BG_SURFACE, BG_SURFACE_HOVER, BORDER_COLOR,

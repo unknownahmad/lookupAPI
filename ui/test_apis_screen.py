@@ -5,7 +5,7 @@
 from functools import partial
 import customtkinter as ctk
 
-from functions.test_catalogue import (
+from functions.catalogue import (
     extract_attribution_info,
     extract_rate_limit_info,
     format_example_endpoint,
