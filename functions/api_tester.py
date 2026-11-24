@@ -11,7 +11,6 @@ from functions.decorators import log_execution
 from functions.logger import get_logger
 from functions.models import CatalogAPI
 from functions.validators import (
-    HEADER_NAME_REGEX,
     validate_request_headers,
     validate_request_url,
 )
