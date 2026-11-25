@@ -155,6 +155,13 @@ The desktop window stays open until you click **Exit** in the sidebar or close t
 6. **View or remove saved APIs (`My Saved APIs`):** Open **My Saved APIs** to view saved records from MySQL or select one and click **Remove Saved API** (with confirmation) to delete it.
 7. **View activity history (`Activity History`):** Open **Activity History** to see timestamped `Saved` and `Removed` entries recorded in `data/activity_log.txt`.
 
+## Scope and Limitations
+
+- The built-in Test APIs catalogue contains 15 entries marked as requiring no authentication. Individual services may still have usage limits, availability issues, or terms that should be checked in their official documentation.
+- Discover APIs uses the public APIs.guru directory to find API descriptions and specifications. An API appearing in that directory is not a guarantee that it is free, currently available, or usable without authentication.
+- The request tester currently supports GET requests only.
+- A local MySQL server is required for saving, viewing, and removing saved API records. An internet connection is required for live API discovery and requests.
+
 ## Python Concepts Demonstrated
 
 - **Lists, dictionaries, sets, and tuples:** Used throughout the backend—for example, API dictionaries and category lists in `functions/catalogue.py` and `functions/api_directory.py`, `ALLOWED_HTTP_METHODS` (`set`) and `seen_keys` (`set` of deduplication `tuple` keys) in `functions/api_directory.py` and `functions/catalogue.py`, and `SUPPORTED_METHODS = ("GET",)` plus `REQUIRED_API_FIELDS` (`tuple`) in `functions/api_tester.py` and `functions/database.py`.
@@ -202,6 +209,6 @@ Saved APIs are stored in a MySQL database named `lookupapis` with a single table
 
 ## AI Assistance and Acknowledgements
 
-- **AI Assistance Disclosure:** I used AI assistance for parts of the CustomTkinter graphical interface under `ui/`. The Python backend modules, MySQL integration, external API workflows, tests, and documentation were developed and integrated for my university Python project.
+- **AI Assistance Disclosure:** AI tools were used as development support during this project, including assistance with parts of the CustomTkinter interface, debugging, backend refactoring, test simplification, and documentation. The final application was integrated, and the three included unit tests were run.
 - **Acknowledgements:** Thanks to [APIs.guru](https://apis.guru/) for the public OpenAPI directory, the providers of the 15 public APIs included in `data/verified_free_apis.json`, and the maintainers of CustomTkinter, Requests, PyMySQL, and python-dotenv.
 - **Author:** Ahmad Sbai ([unknownahmad](https://github.com/unknownahmad/lookupAPI))
